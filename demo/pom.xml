@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    Demo webapp: Magnolia 6.4 Community Edition + the Supertext module (built from the
+    repository root and installed into the local Maven repository first) + a small demo
+    module (site with EN, DE-CH, FR-CH, IT-CH, page and component templates, sample page,
+    demo accounts). Built by demo/Dockerfile; see docs/DEVELOPER.md -> Demo.
+  -->
+  <groupId>com.supertext</groupId>
+  <artifactId>magnolia-supertext-demo</artifactId>
+  <version>0.1.0</version>
+  <packaging>war</packaging>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>17</maven.compiler.release>
+    <magnolia.version>6.4.10</magnolia.version>
+    <!-- Must match the module version in ../pom.xml (the release workflow checks both). -->
+    <supertext.version>0.1.0</supertext.version>
+  </properties>
+
+  <repositories>
+    <repository>
+      <id>magnolia.public</id>
+      <url>https://nexus.magnolia-cms.com/content/groups/public</url>
+      <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+    <repository>
+      <id>vaadin-addons</id>
+      <url>https://maven.vaadin.com/vaadin-addons</url>
+      <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+  </repositories>
+
+  <!-- Magnolia's bundle BOM pins every Magnolia module to the versions of this release. -->
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>info.magnolia.bundle</groupId>
+        <artifactId>magnolia-bundle-parent</artifactId>
+        <version>${magnolia.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <dependency>
+      <groupId>info.magnolia.bundle</groupId>
+      <artifactId>magnolia-community-webapp</artifactId>
+      <version>${magnolia.version}</version>
+      <type>war</type>
+    </dependency>
+    <dependency>
+      <groupId>info.magnolia.bundle</groupId>
+      <artifactId>magnolia-community-webapp</artifactId>
+      <version>${magnolia.version}</version>
+      <type>pom</type>
+    </dependency>
+    <dependency>
+      <groupId>com.supertext</groupId>
+      <artifactId>magnolia-supertext-translation</artifactId>
+      <version>${supertext.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>ROOT</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.14.0</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>3.4.0</version>
+        <configuration>
+          <!-- Our WEB-INF/config/default/magnolia.properties replaces the overlay's. -->
+          <failOnMissingWebXml>false</failOnMissingWebXml>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

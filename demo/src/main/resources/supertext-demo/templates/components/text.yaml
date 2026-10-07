@@ -1,0 +1,4 @@
+title: Text
+renderType: freemarker
+templateScript: /supertext-demo/templates/components/text.ftl
+dialog: supertext-demo:components/text

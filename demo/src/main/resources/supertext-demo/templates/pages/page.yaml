@@ -1,0 +1,16 @@
+title: Supertext demo page
+renderType: freemarker
+templateScript: /supertext-demo/templates/pages/page.ftl
+dialog: supertext-demo:pages/page
+visible: true
+areas:
+  main:
+    title: Content
+    renderType: freemarker
+    templateScript: /supertext-demo/templates/areas/list.ftl
+    type: list
+    availableComponents:
+      text:
+        id: supertext-demo:components/text
+      quote:
+        id: supertext-demo:components/quote

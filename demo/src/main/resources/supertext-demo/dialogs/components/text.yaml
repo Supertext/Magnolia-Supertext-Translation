@@ -1,0 +1,11 @@
+label: Text
+form:
+  properties:
+    headline:
+      $type: textField
+      label: Headline
+      i18n: true
+    text:
+      $type: richTextField
+      label: Text
+      i18n: true

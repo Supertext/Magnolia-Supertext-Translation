@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE module SYSTEM "module.dtd">
+<module>
+  <name>supertext-demo</name>
+  <displayName>Supertext demo</displayName>
+  <description>Demo site (EN, DE-CH, FR-CH, IT-CH), sample page and demo accounts for the Supertext Translation module.</description>
+  <class>com.supertext.magnolia.demo.SupertextDemoModule</class>
+  <version>1.0.0</version>
+
+  <dependencies>
+    <dependency>
+      <name>supertext-translation</name>
+      <version>0.1/*</version>
+    </dependency>
+    <dependency>
+      <name>admincentral</name>
+      <version>6.4/*</version>
+    </dependency>
+    <dependency>
+      <name>pages-app</name>
+      <version>6.4/*</version>
+    </dependency>
+    <dependency>
+      <name>dam-app-jcr</name>
+      <version>6.0/*</version>
+    </dependency>
+    <dependency>
+      <name>resources</name>
+      <version>5.0/*</version>
+    </dependency>
+    <dependency>
+      <name>imaging</name>
+      <version>5.0/*</version>
+    </dependency>
+  </dependencies>
+</module>

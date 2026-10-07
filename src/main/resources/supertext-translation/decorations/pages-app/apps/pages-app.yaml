@@ -1,0 +1,38 @@
+# Adds "Translate with Supertext" to the Pages app:
+# - the page list (browser): at the end of the edit actions, below "Paste page";
+# - the page editor (detail): with the page selected, next to "Edit page properties".
+# Lists merge by item name, so the item is appended to Magnolia's own "edit" groups.
+subApps:
+  browser:
+    actions:
+      translateWithSupertext: &translate
+        label: supertext-translation.action.translate.label
+        icon: icon-content-translation-app
+        $type: openDialogAction
+        dialogId: supertext-translation:translate
+        populate: false
+        availability:
+          writePermissionRequired: true
+          nodeTypes:
+            page: mgnl:page
+          rules:
+            notDeleted:
+              $type: jcrIsDeletedRule
+              negate: true
+    actionbar:
+      sections:
+        - name: crud
+          groups:
+            - name: edit
+              items:
+                - name: translateWithSupertext
+  detail:
+    actions:
+      translateWithSupertext: *translate
+    actionbar:
+      sections:
+        pageActions:
+          groups:
+            edit:
+              items:
+                - name: translateWithSupertext

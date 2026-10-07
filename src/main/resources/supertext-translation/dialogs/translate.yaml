@@ -1,0 +1,38 @@
+# "Translate with Supertext" dialog, opened from the Pages app (see
+# decorations/pages-app/apps/pages-app.yaml). Not bound to the page (populate: false in the
+# opening action): the commit action reads the choices and writes the translations itself.
+label: supertext-translation.dialog.label
+form:
+  properties:
+    intro:
+      $type: staticField
+      label: ""
+      value: supertext-translation.dialog.intro
+    targetLanguages:
+      $type: checkBoxGroupField
+      label: supertext-translation.dialog.targetLanguages.label
+      description: supertext-translation.dialog.targetLanguages.description
+      required: true
+      datasource:
+        name: supertext-target-languages
+    overwrite:
+      $type: checkBoxField
+      label: supertext-translation.dialog.overwrite.label
+      buttonLabel: supertext-translation.dialog.overwrite.buttonLabel
+      defaultValue: false
+    overwriteWarning:
+      $type: staticField
+      label: ""
+      value: supertext-translation.dialog.overwrite.warning
+    includeSubpages:
+      $type: checkBoxField
+      label: supertext-translation.dialog.includeSubpages.label
+      buttonLabel: supertext-translation.dialog.includeSubpages.buttonLabel
+      defaultValue: false
+actions:
+  cancel:
+    label: supertext-translation.dialog.cancel
+    $type: closeAction
+  commit:
+    label: supertext-translation.dialog.commit
+    class: com.supertext.magnolia.translation.ui.TranslateActionDefinition

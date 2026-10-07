@@ -1,0 +1,32 @@
+# The demo site: English (main language) plus Swiss German, French and Italian.
+# The Supertext module reads these languages from here.
+mappings:
+  website:
+    URIPrefix: ''
+    handlePrefix: ''
+    repository: website
+templates:
+  availability:
+    templates:
+      page:
+        id: supertext-demo:pages/page
+i18n:
+  class: info.magnolia.cms.i18n.DefaultI18nContentSupport
+  enabled: true
+  fallbackLocale: en
+  locales:
+    en:
+      language: en
+      enabled: true
+    de_CH:
+      language: de
+      country: CH
+      enabled: true
+    fr_CH:
+      language: fr
+      country: CH
+      enabled: true
+    it_CH:
+      language: it
+      country: CH
+      enabled: true

@@ -1,0 +1,7 @@
+# Shows the Supertext app in the app launcher's Translation group (second row; Magnolia
+# shows the group as soon as it holds an app the user may open).
+layout:
+  groups:
+    - name: translation
+      apps:
+        - name: supertext

@@ -1,0 +1,7 @@
+target/
+node_modules/
+tools/docs/out/
+*.iml
+.idea/
+.vscode/
+.DS_Store

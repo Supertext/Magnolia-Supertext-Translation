@@ -1,0 +1,13 @@
+label: Page properties
+form:
+  properties:
+    title:
+      $type: textField
+      label: Title
+      i18n: true
+      required: true
+    intro:
+      $type: textField
+      label: Introduction
+      rows: 3
+      i18n: true

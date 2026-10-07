@@ -1,0 +1,15 @@
+# Supertext app (app launcher → Translation): the module settings (API key, endpoint, form of address, …).
+# Superusers only; added to the Translation group in decorations/admincentral/config.yaml.
+class: info.magnolia.ui.api.app.registry.ConfiguredAppDescriptor
+appClass: info.magnolia.ui.framework.app.BaseApp
+label: Supertext
+icon: icon-content-translation-app
+permissions:
+  roles:
+    superuser: superuser
+subApps:
+  settings:
+    class: info.magnolia.ui.api.app.registry.ConfiguredSubAppDescriptor
+    subAppClass: com.supertext.magnolia.translation.ui.settings.SupertextSettingsSubApp
+    label: supertext-translation.settings.tab
+    closable: false

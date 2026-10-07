@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Module and unit tests
+        run: mvn -B install
+      - name: Demo webapp
+        run: mvn -B -q -f demo/pom.xml package -Dsupertext.version="$(mvn -B -q help:evaluate -Dexpression=project.version -DforceStdout)"
+      - name: Demo entrypoint and scripts syntax
+        run: |
+          sh -n demo/entrypoint.sh
+          for f in tools/docs/*.mjs; do node --check "$f"; done
+
+  demo:
+    # Builds the image Railway builds, starts it with test accounts and the stand-in API,
+    # and translates the sample page in a browser.
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build the demo image
+        run: docker build -f demo/Dockerfile -t supertext-magnolia-demo .
+      - name: Start the stand-in API
+        run: |
+          cd tools/docs && npm ci
+          STAND_IN_PREFIX=1 nohup node stand-in.mjs > ../../stand-in.log 2>&1 &
+      - name: Start the demo
+        run: |
+          set -euo pipefail
+          admin_pw=$(openssl rand -hex 16); editor_pw=$(openssl rand -hex 16)
+          echo "::add-mask::$admin_pw"; echo "::add-mask::$editor_pw"
+          { echo "ADMIN_PW=$admin_pw"; echo "EDITOR_PW=$editor_pw"; } >> "$GITHUB_ENV"
+          docker run -d --name demo -p 8080:8080 --add-host host.docker.internal:host-gateway \
+            -e DEMO_ADMIN_EMAIL=admin@ci.example -e DEMO_ADMIN_PASSWORD="$admin_pw" \
+            -e DEMO_EDITOR_EMAIL=editor@ci.example -e DEMO_EDITOR_PASSWORD="$editor_pw" \
+            -e SUPERTEXT_API_KEY=ci -e SUPERTEXT_API_ENDPOINT=http://host.docker.internal:8765/v1/ \
+            supertext-magnolia-demo
+          for i in $(seq 1 60); do
+            logs=$(docker logs demo 2>&1)
+            if grep -qF 'Server startup in' <<< "$logs"; then break; fi
+            sleep 5
+          done
+      - name: Check accounts and log
+        run: |
+          set -euo pipefail
+          logs=$(docker logs demo 2>&1)
+          grep -qF 'created the account from DEMO_ADMIN_EMAIL' <<< "$logs"
+          grep -qF 'created the account from DEMO_EDITOR_EMAIL' <<< "$logs"
+          grep -qF 'created the sample page' <<< "$logs"
+          if grep -qF "$ADMIN_PW" <<< "$logs" || grep -qF "$EDITOR_PW" <<< "$logs"; then
+            echo "::error::A demo password appears in the log"; exit 1
+          fi
+          docker restart demo
+          for i in $(seq 1 60); do
+            logs=$(docker logs --since 1m demo 2>&1)
+            if grep -qF 'exists already (left unchanged)' <<< "$logs"; then break; fi
+            sleep 5
+          done
+          grep -qF 'exists already (left unchanged)' <<< "$logs"
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/.magnolia/admincentral || true)
+            [ "$code" = "200" ] && break; sleep 5
+          done
+      - name: End to end
+        run: |
+          cd tools/docs && npx playwright install --with-deps chromium
+          DEMO_URL=http://localhost:8080 DEMO_EDITOR_EMAIL=editor@ci.example DEMO_EDITOR_PASSWORD="$EDITOR_PW" node e2e.mjs
+      - name: Logs on failure
+        if: failure()
+        run: |
+          docker logs demo 2>&1 | tail -200 || true
+          cat stand-in.log || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-failure
+          path: tools/docs/out/
+          if-no-files-found: ignore

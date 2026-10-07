@@ -1,0 +1,11 @@
+label: Quote
+form:
+  properties:
+    quote:
+      $type: textField
+      label: Quote
+      rows: 3
+      i18n: true
+    author:
+      $type: textField
+      label: Author (not translated)

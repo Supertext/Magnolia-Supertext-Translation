@@ -5,6 +5,12 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    # Provided by Magnolia at runtime: updated by hand with magnolia.version (see docs/DEVELOPER.md).
+    ignore:
+      - dependency-name: "info.magnolia*"  # the Magnolia version we compile against is the oldest one we support
+      - dependency-name: "com.vaadin:*"  # must be the Vaadin that Magnolia ships
+      - dependency-name: "com.fasterxml.jackson*"  # must be the Jackson that Magnolia ships (databind needs matching annotations)
+      - dependency-name: "org.jsoup:jsoup"  # must be the jsoup that Magnolia ships
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]

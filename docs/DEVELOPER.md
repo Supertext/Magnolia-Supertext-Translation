@@ -129,6 +129,12 @@ Magnolia's own rules apply: the password must not be empty, and the user name (t
 
 **Service variables:** `DEMO_*` (above), `SUPERTEXT_API_KEY`, optional `SUPERTEXT_API_ENDPOINT`, `PORT=8080` (the domain's target port), `MAGNOLIA_HEAP`, `RAILWAY_DOCKERFILE_PATH=demo/Dockerfile`. On Railway the `DEMO_*` variables reference the umbraco service's (`${{umbraco.DEMO_ADMIN_EMAIL}}` …) and `SUPERTEXT_API_KEY` the orchardcore service's, so the demos share one set.
 
+## Dependency updates
+
+Dependabot (`.github/dependabot.yml`) opens weekly pull requests: Maven minor and patch updates grouped into one, GitHub Actions in another, each major update on its own. Merge one when CI is green and it doesn't change what the module supports.
+
+Everything Magnolia provides at runtime is ignored on purpose and updated by hand: the Magnolia artifacts (`info.magnolia*`: `magnolia.version` and the other Magnolia properties are the oldest Magnolia the module supports, see `docs/INSTALLATION.md` → Requirements), and Vaadin, Jackson and jsoup (`provided` scope, so they must be the versions that Magnolia release ships; a newer `jackson-databind` next to Magnolia's older `jackson-annotations` fails with `NoClassDefFoundError`). When you raise `magnolia.version`, also raise it in `demo/pom.xml` and set Vaadin, Jackson and jsoup to what `mvn dependency:tree -Dverbose -Dincludes=com.vaadin,com.fasterxml.jackson.core,org.jsoup` shows Magnolia bringing.
+
 ## Releasing
 
 Releases are published by `.github/workflows/release.yml` when the version is officially bumped; nobody tags or creates releases by hand.

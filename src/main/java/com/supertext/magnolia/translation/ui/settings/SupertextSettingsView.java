@@ -18,7 +18,7 @@ import com.supertext.magnolia.translation.SupertextSettings;
 import com.supertext.magnolia.translation.api.SupertextClient;
 import com.supertext.magnolia.translation.api.SupertextConnection;
 import com.supertext.magnolia.translation.api.SupertextException;
-import com.supertext.magnolia.translation.api.SupertextLinks;
+import com.supertext.magnolia.translation.ui.SupertextMessages;
 import com.vaadin.server.Sizeable;
 import com.vaadin.shared.ui.ContentMode;
 import com.vaadin.ui.Button;
@@ -49,6 +49,7 @@ public class SupertextSettingsView implements View {
     private final transient SupertextSettings settings;
     private final transient SupertextClient client;
     private final transient SimpleTranslator i18n;
+    private final transient SupertextMessages messages;
     private final transient SettingsStore store;
 
     private final Panel root = new Panel();
@@ -67,6 +68,7 @@ public class SupertextSettingsView implements View {
         this.settings = settings;
         this.client = client;
         this.i18n = i18n;
+        this.messages = new SupertextMessages(i18n::translate);
         this.store = new SettingsStore();
         build();
         load();
@@ -95,7 +97,7 @@ public class SupertextSettingsView implements View {
         apiKey.setCaption(t("supertext-translation.settings.apiKey"));
         apiKey.setWidth(100, Sizeable.Unit.PERCENTAGE);
         form.addComponent(apiKey);
-        form.addComponent(help(SupertextLinks.HTML_HINT));
+        form.addComponent(help(messages.htmlHint()));
         if (!settings.apiKeyFromEnvironment().isEmpty()) {
             apiKey.setEnabled(false);
             form.addComponent(help(t("supertext-translation.settings.apiKeyFromEnvironment", SupertextSettings.API_KEY_VARIABLE)));
@@ -195,7 +197,7 @@ public class SupertextSettingsView implements View {
             try {
                 SupertextClient.checkEndpoint(endpointValue);
             } catch (SupertextException e) {
-                Notification.show(e.getMessage(), Notification.Type.WARNING_MESSAGE);
+                Notification.show(messages.of(e), Notification.Type.WARNING_MESSAGE);
                 return;
             }
         }
@@ -230,9 +232,8 @@ public class SupertextSettingsView implements View {
             client.validateApiKey(connection);
             status.setValue("<span style=\"color:#2e7d32\">✓ " + escape(t("supertext-translation.settings.checkOk", connection.endpoint())) + "</span>");
         } catch (SupertextException e) {
-            String hint = e.isAuthenticationProblem() ? "<br>" + SupertextLinks.HTML_HINT : "";
-            String message = e.getMessage().replace(SupertextLinks.PLAIN_TEXT_HINT, "").trim();
-            status.setValue("<span style=\"color:#c62828\">✗ " + escape(message) + "</span>" + hint);
+            String hint = e.isAuthenticationProblem() ? "<br>" + messages.htmlHint() : "";
+            status.setValue("<span style=\"color:#c62828\">✗ " + escape(messages.of(e)) + "</span>" + hint);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

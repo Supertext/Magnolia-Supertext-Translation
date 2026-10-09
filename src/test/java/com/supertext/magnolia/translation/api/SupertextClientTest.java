@@ -119,6 +119,7 @@ class SupertextClientTest {
         SupertextException e = assertThrows(SupertextException.class, () -> client().validateApiKey(connection("k")));
         assertEquals(1 + SupertextClient.RATE_LIMIT_RETRIES, calls.size());
         assertTrue(e.getMessage().startsWith("Too many requests"));
+        assertEquals(SupertextClient.KEY_PREFIX + "rateLimit", e.key());
     }
 
     @Test
@@ -129,6 +130,9 @@ class SupertextClientTest {
         assertTrue(e.getMessage().contains(SupertextLinks.SIGNUP_URL));
         assertTrue(e.getMessage().contains(SupertextLinks.API_KEY_URL));
         assertTrue(e.getMessage().contains("\"message\":\"nope\""), "detail without tags: " + e.getMessage());
+        // The UI translates the key and appends the detail.
+        assertEquals(SupertextClient.KEY_PREFIX + "authentication", e.key());
+        assertTrue(e.detail().contains("\"message\":\"nope\""), e.detail());
     }
 
     @Test

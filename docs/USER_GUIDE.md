@@ -44,6 +44,8 @@ Formatting, links and lists in rich text stay where they are; links keep their t
 
 ## Messages
 
+The dialog, the messages and the Supertext app follow your AdminCentral interface language (English, German, French or Italian), which you set in your user profile.
+
 | Message | Meaning |
 | --- | --- |
 | *6 texts translated into German (Switzerland).* | Done. Review and publish. |

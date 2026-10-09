@@ -30,7 +30,7 @@ App launcher → Translation → Supertext (superuser)
 | `content/DialogFieldResolver` | Which properties to translate: the node's `mgnl:template` → `TemplateDefinition.getDialog()` → `DialogDefinitionRegistry` → a Magnolia 6 `FormDialogDefinition`; every `TextFieldDefinition` (plain) and `RichTextFieldDefinition` (HTML) with `i18n: true`. Composite fields: sub-fields on the same node (`CurrentItemProviderDefinition`) or in a child node (`NestedContentProvider`/`JcrChildNodeProviderDefinition`, `TranslatableField.childNode`); an `i18n` composite with child nodes (one child node per locale) is skipped. Plus the *Also translate* property names. |
 | `content/PageTranslator` | Plain JCR. Collects the page, its non-page descendants (areas, components, nested nodes) and, if asked, subpages; skips `jcr:*` and `mgnl:deleted`. Per target: keeps non-empty translations unless `overwrite`, chunks documents at 900 000 characters, writes the results, marks changed nodes and their page modified, saves. A Supertext error for one language rolls that language back (`session.refresh(false)`) and goes on; a missing/rejected key aborts everything. Unit-tested with Magnolia's `MockNode`. |
 | `SupertextSettings`, `ui/settings/SettingsStore` | Settings in effect, read from `config:/modules/supertext-translation/config` **on every use** (system context; Magnolia doesn't refresh the module bean when that node is created at runtime), with `SUPERTEXT_API_KEY` / `SUPERTEXT_API_ENDPOINT` (environment or system property) winning. `SupertextTranslationModule` is the module class and the settings bean. |
-| `ui/TranslateAction` | Validates the form, resolves the languages, checks for a key (dialog stays open on key problems), runs `PageTranslator`, closes the dialog, refreshes the list (`DatasourceObservation.Manual.trigger`) and shows a Vaadin `Notification` with the summary. Messages come from `supertext-translation/i18n/*.properties` (en, de) via `SimpleTranslator`. |
+| `ui/TranslateAction` | Validates the form, resolves the languages, checks for a key (dialog stays open on key problems), runs `PageTranslator`, closes the dialog, refreshes the list (`DatasourceObservation.Manual.trigger`) and shows a Vaadin `Notification` with the summary. Messages come from the i18n bundle (see *Interface strings*) via `SimpleTranslator`; Supertext errors are shown through `ui/SupertextMessages`. |
 | `ui/settings/SupertextSettingsView` | Plain Vaadin 8 form: key (never shown back; empty keeps it), endpoint, form of address, language mapping, excluded/additional properties, timeout; *Check connection* calls `GET features`; version from the jar manifest (`Implementation-Version`) linked to its GitHub release. |
 
 ## Supertext API protocol
@@ -65,10 +65,18 @@ The first start installs Magnolia into the volume (about a minute); sign in at <
 
 Magnolia's default log config sets `com` to `WARN`; the demo's `log4j2.xml` adds `com.supertext` at `INFO`.
 
+### Interface strings
+
+All texts the module shows live in Magnolia's message bundle `src/main/resources/supertext-translation/i18n/module-supertext-translation-messages_{en,de,fr,it}.properties` (UTF-8, as Magnolia 6 reads them; no `\u` escapes needed). YAML definitions reference the keys (`label: supertext-translation.dialog.label`), Java code uses `SimpleTranslator`. Every new or changed string goes into all four files in the same commit: formal address (Sie, vous, Lei), Magnolia's own terms in each language (page/Seite/page/pagina, component/Komponente/composant/componente, publish/veröffentlichen/publier/pubblicare), never translate "Supertext", placeholders or URLs, and French gets a non-breaking space before `? ! : ;` and inside `« »`.
+
+- `SimpleTranslator` runs `MessageFormat` when there are arguments, so a message with `{0}` must not contain a straight apostrophe (`'` starts a quoted section): French and Italian use `’`.
+- `api/` stays free of Magnolia classes: a `SupertextException` carries an English message (logs) plus a key under `supertext-translation.error.*`, its arguments and Supertext's answer (`detail`); `ui/SupertextMessages` turns it into the user's language and builds the API key hint (`supertext-translation.apiKey.hint` / `hintHtml`, `{0}` = sign-up URL, `{1}` = API key URL).
+- `MessageBundlesTest` checks that all four files have the same keys and placeholders, that every key used in the Java code and YAML exists, the apostrophe rule, the French spacing and both links in the hint.
+
 ## Tests
 
 ```bash
-mvn test        # HtmlDocument, SupertextClient (local HTTP server: protocol, auth header, 429, errors), settings, DialogFieldResolver, PageTranslator (MockNode)
+mvn test        # HtmlDocument, SupertextClient (local HTTP server: protocol, auth header, 429, errors), settings, DialogFieldResolver, PageTranslator (MockNode), message bundles (MessageBundlesTest)
 ```
 
 End to end against a running demo and the stand-in: `cd tools/docs && DEMO_URL=http://localhost:8080 DEMO_EDITOR_EMAIL=… DEMO_EDITOR_PASSWORD=… npm run e2e` signs in as the editor, translates the sample page into German in the Pages app and checks `/de_CH/supertext-demo.html`.

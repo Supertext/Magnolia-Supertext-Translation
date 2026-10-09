@@ -118,6 +118,10 @@ form:
 
 The locale is sent to Supertext as the target language (`de_CH` → `de-CH`, `fr` → `fr`), and the default language as its language part (`en_US` → `en`). If Supertext needs a different code, map it under **Language codes** (see below).
 
+### Interface languages
+
+The module's own screens (the *Translate with Supertext* action and dialog, its messages and the Supertext app) are available in English, German, French and Italian. They follow each user's AdminCentral language: the user menu (top right) → **Edit profile** → **Language**, or for other users the Security app → **Users** → edit the user → **Language**. Other interface languages fall back to English. This is independent of the site's content languages above.
+
 ## Permissions
 
 | Who | Can |

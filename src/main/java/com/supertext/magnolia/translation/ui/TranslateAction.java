@@ -33,7 +33,6 @@ import info.magnolia.ui.observation.DatasourceObservation;
 import com.supertext.magnolia.translation.SupertextSettings;
 import com.supertext.magnolia.translation.api.SupertextClient;
 import com.supertext.magnolia.translation.api.SupertextException;
-import com.supertext.magnolia.translation.api.SupertextLinks;
 import com.supertext.magnolia.translation.content.DialogFieldResolver;
 import com.supertext.magnolia.translation.content.PageTranslator;
 import com.supertext.magnolia.translation.content.SiteLanguages;
@@ -64,6 +63,7 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
     private final TemplateDefinitionRegistry templates;
     private final DialogDefinitionRegistry dialogs;
     private final SimpleTranslator i18n;
+    private final SupertextMessages messages;
 
     @Inject
     public TranslateAction(TranslateActionDefinition definition, ValueContext<Node> valueContext, EditorView<Node> form, CloseHandler closeHandler,
@@ -82,6 +82,7 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
         this.templates = templates;
         this.dialogs = dialogs;
         this.i18n = i18n;
+        this.messages = new SupertextMessages(i18n::translate);
     }
 
     @Override
@@ -108,7 +109,7 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
             return;
         }
         if (!settings.hasApiKey()) {
-            error(t("supertext-translation.translate.noApiKey"), SupertextLinks.PLAIN_TEXT_HINT);
+            error(t("supertext-translation.translate.noApiKey"), messages.hint());
             return;
         }
         boolean overwrite = this.<Boolean>value(FIELD_OVERWRITE).orElse(false);
@@ -125,7 +126,8 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
             report = translator.translate(new PageTranslator.Request(page, targets, overwrite, subpages));
         } catch (SupertextException e) {
             // Missing or rejected key: nothing was saved, keep the dialog open.
-            error(e.getMessage(), null);
+            log.warn("Supertext: {}", e.getMessage());
+            error(messages.of(e), e.isAuthenticationProblem() ? messages.hint() : null);
             return;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -162,7 +164,7 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
             lines.add(t("supertext-translation.translate.nothing"));
         }
         report.languages().stream().filter(PageTranslator.LanguageResult::failed)
-                .forEach(r -> lines.add(SiteLanguagesLookup.displayName(r.locale()) + ": " + r.error()));
+                .forEach(r -> lines.add(t("supertext-translation.translate.languageFailed", SiteLanguagesLookup.displayName(r.locale()), messages.of(r.problem()))));
         log.info("Supertext: translated '{}' ({} pages): {}", page, report.pages(), report.languages());
 
         String caption = t(report.anyFailed() ? "supertext-translation.translate.partly"
@@ -213,7 +215,6 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
     }
 
     private void error(String message, String hint) {
-        log.warn("Supertext: {}", message);
         Notification.show(t("supertext-translation.translate.failed"), hint == null ? message : message + "\n" + hint, Notification.Type.ERROR_MESSAGE);
     }
 }

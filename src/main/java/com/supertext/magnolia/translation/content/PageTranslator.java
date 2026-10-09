@@ -50,10 +50,15 @@ public final class PageTranslator {
     public record Request(Node page, List<Locale> targets, boolean overwrite, boolean includeSubpages) {
     }
 
-    /** Outcome for one language. {@code error} is null when it worked. */
-    public record LanguageResult(Locale locale, int translated, int kept, int unchanged, String error) {
+    /** Outcome for one language. {@code problem} is null when it worked. */
+    public record LanguageResult(Locale locale, int translated, int kept, int unchanged, SupertextException problem) {
         public boolean failed() {
-            return error != null;
+            return problem != null;
+        }
+
+        /** The problem's English message, or null when it worked. */
+        public String error() {
+            return problem == null ? null : problem.getMessage();
         }
     }
 
@@ -110,7 +115,7 @@ public final class PageTranslator {
                 if (e.isAuthenticationProblem()) {
                     throw e;
                 }
-                results.add(new LanguageResult(target, 0, 0, 0, e.getMessage()));
+                results.add(new LanguageResult(target, 0, 0, 0, e));
             } catch (RepositoryException | RuntimeException e) {
                 request.page().getSession().refresh(false);
                 throw e;

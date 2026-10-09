@@ -23,6 +23,10 @@ Everywhere an administrator enters or is told about the API key — the settings
 
 Wording: "No Supertext account yet? Create one at supertext.com. Generate your API key at supertext.com → Integrations → API (requires the Admin role)." In the UI, links open in a new tab (`target="_blank" rel="noopener"`); where the CMS shows plain text only, use the bare URLs. New screens or messages that mention the key get the links too.
 
+## UI languages (always)
+
+The plugin's own UI (buttons, panels, dialogs, settings, permissions, messages) is available in English, German, French and Italian through the CMS's own translation mechanism, so it follows the user's back-end language. New or changed strings get all four languages in the same commit. Formal address (Sie, vous, Lei), the CMS's own terms in each language, "Supertext", placeholders and URLs never translated.
+
 ## Plugin list (always)
 
 `README.md` ends with the shared list of all Supertext plugins (between the `<!-- supertext-plugins:start -->` and `<!-- supertext-plugins:end -->` markers). It is identical in every Supertext plugin repo: when a plugin is added, renamed or its description changes, update the list in **all** repos, not just this one.
@@ -83,5 +87,6 @@ Lessons from testing against the live API (October 2026), to apply in every plug
 - The demo webapp must import Magnolia's bundle BOM (`magnolia-bundle-parent`), or Maven picks older Magnolia jars and Magnolia refuses to start (module dependency errors).
 - Magnolia 6.4.5+ starts with the built-in superuser disabled and an admin setup screen (`/.magnolia/adminsetup`); the demo completes it once the `DEMO_ADMIN_*` account exists.
 - Vaadin keeps a push connection open: in Playwright scripts wait for selectors, never for `networkidle`. Don't open the *Definitions* app in scripts (it breaks AdminCentral's banner in 6.4.10).
+- UI strings live in `src/main/resources/supertext-translation/i18n/module-supertext-translation-messages_{en,de,fr,it}.properties` (UTF-8); a new key goes into all four (`MessageBundlesTest` checks). Messages with `{0}` go through `MessageFormat`: no straight `'` in them (use `’`). Supertext errors carry a `supertext-translation.error.*` key, shown via `ui/SupertextMessages`.
 - Magnolia's default `log4j2.xml` sets `com` to `WARN`; the demo raises `com.supertext` to `INFO`.
 - Test against the local stand-in (`tools/docs/stand-in.mjs`, `STAND_IN_PREFIX=1` marks untranslated text) before the live API.

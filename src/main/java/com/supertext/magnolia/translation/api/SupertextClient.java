@@ -111,7 +111,7 @@ public class SupertextClient {
         HttpResponse<String> response = send(connection, "POST", "translate/ai/file", body, "multipart/form-data; boundary=" + boundary);
         String fileId = readJson(response.body()).map(json -> json.path("file_id").asText("")).orElse("");
         if (fileId.isEmpty()) {
-            throw new SupertextException("Supertext did not return a file id.");
+            throw error("noFileId", "Supertext did not return a file id.");
         }
         return fileId;
     }
@@ -126,23 +126,23 @@ public class SupertextClient {
                 case "done":
                     return;
                 case "error":
-                    throw new SupertextException("Supertext failed to translate the document.");
+                    throw error("failed", "Supertext failed to translate the document.");
                 case "limit_exceeded":
-                    throw new SupertextException("Your Supertext translation limit is exceeded.");
+                    throw error("limitExceeded", "Your Supertext translation limit is exceeded.");
                 case "deleted":
-                    throw new SupertextException("The Supertext file was deleted before it could be downloaded.");
+                    throw error("deleted", "The Supertext file was deleted before it could be downloaded.");
                 default:
                     sleeper.sleep(interval);
             }
         } while (System.currentTimeMillis() < deadline);
-        throw new SupertextException("Timed out waiting for the Supertext translation.");
+        throw error("timeout", "Timed out waiting for the Supertext translation.");
     }
 
     private String download(SupertextConnection connection, String fileId) throws SupertextException, InterruptedException {
         HttpResponse<String> response = send(connection, "GET", "translate/ai/file/" + encode(fileId) + "/translation", null, null);
         String body = response.body();
         if (body == null || body.isBlank()) {
-            throw new SupertextException("The translated document was empty.");
+            throw error("empty", "The translated document was empty.");
         }
         return body;
     }
@@ -161,7 +161,8 @@ public class SupertextClient {
             throws SupertextException, InterruptedException {
         String apiKey = normalizeApiKey(connection.apiKey());
         if (apiKey.isEmpty()) {
-            throw new SupertextException("No Supertext API key configured (Translation → Supertext, or the SUPERTEXT_API_KEY environment variable). "
+            throw new SupertextException(KEY_PREFIX + "noApiKey", new Object[0], "",
+                    "No Supertext API key configured (Translation → Supertext, or the SUPERTEXT_API_KEY environment variable). "
                     + SupertextLinks.PLAIN_TEXT_HINT, true, null);
         }
         URI uri = baseUri(connection.endpoint()).resolve(path);
@@ -182,7 +183,8 @@ public class SupertextClient {
             try {
                 response = http.send(request.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             } catch (IOException e) {
-                throw new SupertextException("Could not reach Supertext: " + e.getMessage(), e);
+                throw new SupertextException(KEY_PREFIX + "unreachable", new Object[] {String.valueOf(e.getMessage())}, "",
+                        "Could not reach Supertext: " + e.getMessage(), false, e);
             }
             if (response.statusCode() != 429 || attempt >= RATE_LIMIT_RETRIES) {
                 break;
@@ -197,26 +199,39 @@ public class SupertextClient {
             return response;
         }
         String message;
+        String key;
+        Object[] args = new Object[0];
         boolean authentication = false;
         if (code == 401 || code == 403) {
+            key = "authentication";
             message = "Authentication failed. Please check the Supertext API key. " + SupertextLinks.PLAIN_TEXT_HINT;
             authentication = true;
         } else if (code == 404) {
+            key = "notFound";
             message = "The requested Supertext resource was not found.";
         } else if (code == 413) {
+            key = "tooLarge";
             message = "The content is too large for Supertext to translate in one go.";
         } else if (code == 429) {
+            key = "rateLimit";
             message = "Too many requests to Supertext. Please try again shortly.";
         } else if (code >= 500) {
+            key = "unavailable";
             message = "The Supertext service is currently unavailable.";
         } else {
+            key = "http";
+            // A string, so the UI's MessageFormat doesn't group the digits.
+            args = new Object[] {String.valueOf(code)};
             message = "Supertext answered with HTTP " + code + ".";
         }
         String detail = TAGS.matcher(response.body() == null ? "" : response.body()).replaceAll("").trim();
-        if (!detail.isEmpty()) {
-            message += " (" + (detail.length() > 200 ? detail.substring(0, 200) : detail) + ")";
+        if (detail.length() > 200) {
+            detail = detail.substring(0, 200);
         }
-        throw new SupertextException(message, authentication, null);
+        if (!detail.isEmpty()) {
+            message += " (" + detail + ")";
+        }
+        throw new SupertextException(KEY_PREFIX + key, args, detail, message, authentication, null);
     }
 
     /** Throws when the endpoint is not https (http is allowed for localhost only). */
@@ -236,12 +251,20 @@ public class SupertextClient {
             boolean local = host.equals("localhost") || host.equals("127.0.0.1") || host.equals("[::1]") || host.equals("::1")
                     || host.endsWith(".localhost") || host.equals("host.docker.internal");
             if (!scheme.equals("https") && !(scheme.equals("http") && local)) {
-                throw new SupertextException("The Supertext endpoint must use https (http is only allowed for localhost): " + value);
+                throw error("endpointNotHttps", "The Supertext endpoint must use https (http is only allowed for localhost): " + value, value);
             }
             return uri;
         } catch (IllegalArgumentException e) {
-            throw new SupertextException("The Supertext endpoint is not a valid URL: " + value, e);
+            throw new SupertextException(KEY_PREFIX + "endpointInvalid", new Object[] {value}, "",
+                    "The Supertext endpoint is not a valid URL: " + value, false, e);
         }
+    }
+
+    /** Prefix of the error message keys in the module's i18n bundle. */
+    public static final String KEY_PREFIX = "supertext-translation.error.";
+
+    private static SupertextException error(String key, String english, Object... args) {
+        return new SupertextException(KEY_PREFIX + key, args, "", english, false, null);
     }
 
     private static Optional<Long> retryAfterMillis(HttpResponse<?> response) {

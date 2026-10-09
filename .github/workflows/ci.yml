@@ -6,17 +6,22 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '22'
       - name: Module and unit tests
@@ -35,8 +40,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '22'
       - name: Build the demo image
@@ -56,7 +63,7 @@ jobs:
             -e DEMO_EDITOR_EMAIL=editor@ci.example -e DEMO_EDITOR_PASSWORD="$editor_pw" \
             -e SUPERTEXT_API_KEY=ci -e SUPERTEXT_API_ENDPOINT=http://host.docker.internal:8765/v1/ \
             supertext-magnolia-demo
-          for i in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             logs=$(docker logs demo 2>&1)
             if grep -qF 'Server startup in' <<< "$logs"; then break; fi
             sleep 5
@@ -72,13 +79,13 @@ jobs:
             echo "::error::A demo password appears in the log"; exit 1
           fi
           docker restart demo
-          for i in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             logs=$(docker logs --since 1m demo 2>&1)
             if grep -qF 'exists already (left unchanged)' <<< "$logs"; then break; fi
             sleep 5
           done
           grep -qF 'exists already (left unchanged)' <<< "$logs"
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/.magnolia/admincentral || true)
             [ "$code" = "200" ] && break; sleep 5
           done
@@ -91,7 +98,7 @@ jobs:
         run: |
           docker logs demo 2>&1 | tail -200 || true
           cat stand-in.log || true
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: e2e-failure

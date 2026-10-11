@@ -26,6 +26,7 @@ App launcher → Translation → Supertext (superuser)
 | `supertext-translation/apps/supertext.yaml`, `decorations/admincentral/config.yaml` | The Supertext app (`ConfiguredAppDescriptor`, `BaseApp`, one sub-app), `superuser` only, in the launcher group `translation` (Magnolia 6.4's layout has no *Tools* group). |
 | `api/SupertextClient` | HTTP protocol (below) on the JDK's `HttpClient`: multipart upload with quoted part names, polling, download, delete; 429 retries; prefix-tolerant key; https-only endpoint (http for localhost). No Magnolia dependencies, unit-tested against a local `HttpServer`. |
 | `api/HtmlDocument` | Packs segments into one HTML document (`<div data-st-id="N">`) and back (jsoup, shipped with magnolia-core). Plain text is HTML-encoded (line breaks as `<br>`); rich text goes as it is, **one segment per field**. Magnolia's internal links (`${link:{…}}`) are in `href` attributes, which Supertext keeps. |
+| `api/LanguageCodes` | Locale or mapping entry → Supertext source (bare) and target (regional) code; see *Language codes*. |
 | `content/SiteLanguages`, `ui/SiteLanguagesLookup` | The page's site (`SiteManager.getAssignedSite(page).getI18n()`, falling back to the global `I18nContentSupport`). The default locale is the source; property names follow Magnolia's dialogs: the default locale is the bare name, others get `"_" + I18nContentSupport.getLanguageString(locale)` (`title_de_CH`). |
 | `content/DialogFieldResolver` | Which properties to translate: the node's `mgnl:template` → `TemplateDefinition.getDialog()` → `DialogDefinitionRegistry` → a Magnolia 6 `FormDialogDefinition`; every `TextFieldDefinition` (plain) and `RichTextFieldDefinition` (HTML) with `i18n: true`. Composite fields: sub-fields on the same node (`CurrentItemProviderDefinition`) or in a child node (`NestedContentProvider`/`JcrChildNodeProviderDefinition`, `TranslatableField.childNode`); an `i18n` composite with child nodes (one child node per locale) is skipped. Plus the *Also translate* property names. |
 | `content/PageTranslator` | Plain JCR. Collects the page, its non-page descendants (areas, components, nested nodes) and, if asked, subpages; skips `jcr:*` and `mgnl:deleted`. Per target: keeps non-empty translations unless `overwrite`, chunks documents at 900 000 characters, writes the results, marks changed nodes and their page modified, saves. A Supertext error for one language rolls that language back (`session.refresh(false)`) and goes on; a missing/rejected key aborts everything. Unit-tested with Magnolia's `MockNode`. |
@@ -37,12 +38,22 @@ App launcher → Translation → Supertext (superuser)
 
 AI file translation API v1, shared with all Supertext plugins:
 
-1. `POST translate/ai/file` — multipart: `file` (`content.html`, part `Content-Type: text/html` exactly), `target_lang` (`de-CH`), `source_lang` (primary subtag, `en`), optional `politeness` (`more`/`less`) → `{file_id}`
+1. `POST translate/ai/file` — multipart: `file` (`content.html`, part `Content-Type: text/html` exactly), `target_lang` (`de-CH`), `source_lang` (bare language, `en`; see *Language codes*), optional `politeness` (`more`/`less`) → `{file_id}`
 2. `GET translate/ai/file/{id}/status` every 2 s until `done` (`error`, `limit_exceeded`, `deleted` fail; timeout from the settings, default 300 s)
 3. `GET translate/ai/file/{id}/translation` → translated HTML
 4. `DELETE translate/ai/file/{id}` (files also expire after 24 h)
 
 Header `Authorization: Supertext-Auth-Key <key>` (a pasted prefix is stripped, exactly one is sent). HTTP 429 is retried up to 4 times (`Retry-After`, else 1/2/4/8 s with jitter). Languages are translated one after the other to stay under the per-second limit. The Supertext app calls `GET features` (free) to check the key.
+
+### Language codes
+
+Supertext rejects a bare target (`de`) and a regional source (`en-GB`) with `INVALID_LANGUAGE_PAIR`. `api/LanguageCodes` (unit-tested) makes the codes; `SupertextSettings.targetLanguageCode`/`sourceLanguageCode` feed it the locale and the *Language codes* mapping entry (matched on `de_CH`, `de-CH` or `de`):
+
+- **Source:** the bare language of the mapping entry, else of the locale: `en_US`, `en_GB` → `en`.
+- **Target:** the mapping entry, else the locale's BCP-47 tag, normalized (`de_ch` → `de-CH`; scripts and numeric regions keep their form: `zh-Hant`, `es-419`). Magnolia sites often use bare locales (`de`); a code without a region gets a default: ar-SA, bg-BG, cs-CZ, da-DK, de-DE, el-GR, en-US, es-ES, et-EE, fi-FI, fr-FR, hr-HR, hu-HU, it-IT, ja-JP, ko-KR, lt-LT, lv-LV, nb-NO, nl-NL, pl-PL, pt-PT, ro-RO, ru-RU, sk-SK, sl-SI, sr-RS, sv-SE, th-TH, tr-TR, uk-UA, vi-VN, zh-CN (same table in every Supertext plugin). Unknown bare codes are sent unchanged, so Supertext's error names them.
+- Translating within one language (source `en`, target `en-GB`) is allowed.
+
+The stand-in (`tools/docs/stand-in.mjs`) rejects bare targets and regional sources like the live API.
 
 ## Local development
 
@@ -76,7 +87,7 @@ All texts the module shows live in Magnolia's message bundle `src/main/resources
 ## Tests
 
 ```bash
-mvn test        # HtmlDocument, SupertextClient (local HTTP server: protocol, auth header, 429, errors), settings, DialogFieldResolver, PageTranslator (MockNode), message bundles (MessageBundlesTest)
+mvn test        # HtmlDocument, LanguageCodes, SupertextClient (local HTTP server: protocol, auth header, 429, errors), settings, DialogFieldResolver, PageTranslator (MockNode), message bundles (MessageBundlesTest)
 ```
 
 End to end against a running demo and the stand-in: `cd tools/docs && DEMO_URL=http://localhost:8080 DEMO_EDITOR_EMAIL=… DEMO_EDITOR_PASSWORD=… npm run e2e` signs in as the editor, translates the sample page into German in the Pages app and checks `/de_CH/supertext-demo.html`.

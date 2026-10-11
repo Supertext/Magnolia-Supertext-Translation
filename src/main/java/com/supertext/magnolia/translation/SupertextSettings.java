@@ -13,6 +13,7 @@ import jakarta.inject.Singleton;
 
 import com.supertext.magnolia.translation.ui.settings.SettingsStore;
 
+import com.supertext.magnolia.translation.api.LanguageCodes;
 import com.supertext.magnolia.translation.api.SupertextClient;
 import com.supertext.magnolia.translation.api.SupertextConnection;
 
@@ -77,10 +78,20 @@ public class SupertextSettings {
     }
 
     /**
-     * The code sent to Supertext for a Magnolia locale: the language mapping if it has an
-     * entry (matched on {@code de_CH}, {@code de-CH} or {@code de}), else the BCP-47 tag.
+     * The target code sent to Supertext for a Magnolia locale: the language mapping if it has an
+     * entry (matched on {@code de_CH}, {@code de-CH} or {@code de}), else the BCP-47 tag, always
+     * with a region ({@code de} → {@code de-DE}; see {@link LanguageCodes}).
      */
     public String targetLanguageCode(Locale locale) {
+        return LanguageCodes.target(locale.toLanguageTag(), mappedCode(locale));
+    }
+
+    /** The source code sent to Supertext: the bare language of the mapping entry or locale ({@code en_GB} → {@code en}). */
+    public String sourceLanguageCode(Locale locale) {
+        return LanguageCodes.source(locale.toLanguageTag(), mappedCode(locale));
+    }
+
+    private String mappedCode(Locale locale) {
         Map<String, String> mapping = parseMapping(module().getLanguageMapping());
         for (String key : new String[] {locale.toString(), locale.toLanguageTag(), locale.getLanguage()}) {
             String code = mapping.get(key.toLowerCase(Locale.ROOT));
@@ -88,7 +99,7 @@ public class SupertextSettings {
                 return code;
             }
         }
-        return locale.toLanguageTag();
+        return null;
     }
 
     public Set<String> excludedProperties() {

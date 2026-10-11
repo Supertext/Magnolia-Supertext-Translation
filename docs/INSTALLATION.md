@@ -116,7 +116,7 @@ form:
       i18n: true
 ```
 
-The locale is sent to Supertext as the target language (`de_CH` → `de-CH`, `fr` → `fr`), and the default language as its language part (`en_US` → `en`). If Supertext needs a different code, map it under **Language codes** (see below).
+The locale is sent to Supertext as the target language (`de_CH` → `de-CH`), and the default language as its language part (`en_US` → `en`). Supertext needs a region in the target language, so a locale without one gets a regional default: `de` → `de-DE`, `en` → `en-US`, `fr` → `fr-FR`, `it` → `it-IT`, `pt` → `pt-PT`, … (full list in `docs/DEVELOPER.md` → *Language codes*). If Supertext needs a different code, map it under **Language codes** (see below).
 
 ### Interface languages
 
@@ -136,7 +136,7 @@ The module's own screens (the *Translate with Supertext* action and dialog, its 
 | API key | – | See above. |
 | Endpoint | `https://api.supertext.com/v1/` | Change only for testing. Must be `https` (plain `http` only to `localhost`), because the API key travels with every request. Disabled while `SUPERTEXT_API_ENDPOINT` is set. |
 | Form of address | Automatic | *Formal* or *Informal* for languages that distinguish them (German *Sie*/*du*, French *vous*/*tu* …). |
-| Language codes | – | One `locale=code` per line, e.g. `de=de-CH` if your site uses `de` but you want Swiss German. A line matches the locale (`de_CH` or `de-CH`) or its language (`de`). |
+| Language codes | – | One `locale=code` per line, e.g. `de=de-CH` if your site uses `de` but you want Swiss German. A line matches the locale (`de_CH` or `de-CH`) or its language (`de`). A code without a region gets the same regional default; for the source language only its language counts. |
 | Never translate | – | Property names (comma or line separated) that keep the source text, e.g. `teaserCode`. |
 | Also translate | – | Property names that are translated wherever they hold text, even if no dialog describes them (content from imports or legacy Magnolia 5 dialogs). Rich text is recognised by its tags. |
 | Timeout (seconds) | 300 | How long to wait for Supertext per document before giving up (10–3600 s). |

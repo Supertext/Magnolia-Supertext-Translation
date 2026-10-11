@@ -118,7 +118,7 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
         PageTranslator translator = new PageTranslator(
                 languages,
                 new DialogFieldResolver(templates, dialogs, settings.additionalProperties()),
-                (html, target, source) -> client.translateDocument(settings.connection(), html, settings.targetLanguageCode(target), source.toLanguageTag(), settings.politeness()),
+                (html, target, source) -> client.translateDocument(settings.connection(), html, settings.targetLanguageCode(target), settings.sourceLanguageCode(source), settings.politeness()),
                 NodeTypes.LastModified::update,
                 settings.excludedProperties());
         PageTranslator.Report report;

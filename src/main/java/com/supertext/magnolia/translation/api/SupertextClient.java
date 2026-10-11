@@ -84,19 +84,16 @@ public class SupertextClient {
         return apiKey == null ? "" : AUTH_PREFIX.matcher(apiKey).replaceFirst("").trim();
     }
 
-    /** Supertext expects the source as a primary subtag ("de", not "de-CH"). */
+    /** Supertext expects the source as a bare language ("de", not "de-CH"). */
     public static String sourceLanguageCode(String locale) {
-        if (locale == null || locale.isBlank()) {
-            return "";
-        }
-        return locale.trim().split("[-_]")[0].toLowerCase(Locale.ROOT);
+        return LanguageCodes.source(locale);
     }
 
     private String submit(SupertextConnection connection, String html, String targetLanguage, String sourceLanguage, String politeness)
             throws SupertextException, InterruptedException {
         String boundary = "----SupertextMagnolia" + UUID.randomUUID().toString().replace("-", "");
         Multipart form = new Multipart(boundary);
-        form.field("target_lang", targetLanguage);
+        form.field("target_lang", LanguageCodes.target(targetLanguage));
         String source = sourceLanguageCode(sourceLanguage);
         if (!source.isEmpty()) {
             form.field("source_lang", source);

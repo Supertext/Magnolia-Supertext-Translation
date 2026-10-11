@@ -100,6 +100,14 @@ class SupertextClientTest {
     }
 
     @Test
+    void sendsABareTargetWithItsDefaultRegion() throws Exception {
+        client().translateDocument(connection("secret"), "<div data-st-id=\"0\">Hello</div>", "de", "en-GB", "default");
+
+        assertTrue(submittedBody.contains("name=\"target_lang\"\r\n\r\nde-DE\r\n"));
+        assertTrue(submittedBody.contains("name=\"source_lang\"\r\n\r\nen\r\n"));
+    }
+
+    @Test
     void sendsExactlyOneAuthPrefix() throws Exception {
         client().validateApiKey(connection("  Supertext-Auth-Key abc123 "));
         assertEquals(List.of("Supertext-Auth-Key abc123"), authHeaders);

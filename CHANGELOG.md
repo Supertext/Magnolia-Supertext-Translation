@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+### Fixed
+
+- Target languages without a region (e.g. a site locale `de`, or a *Language codes* entry `de=de`) are now sent as `de-DE`; Supertext rejects target languages without a region. Codes like `de_ch` are normalized to `de-CH`.
+
 ### Added
 
 - French and Italian interface (and German where it was missing): the dialog, messages and Supertext app follow the user's AdminCentral language. Supertext error messages (e.g. *Too many requests*, *Authentication failed*) and the API key hint are now translated too.

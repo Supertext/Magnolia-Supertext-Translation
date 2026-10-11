@@ -46,6 +46,13 @@ http
         console.log('POST with unreadable multipart body:', e.message);
         return send(400, { error: 'INVALID_MULTIPART' });
       }
+      // Like the live API: the target needs a region (de-DE), the source must be bare (en).
+      const target = String(form.get('target_lang') ?? '');
+      const source = form.get('source_lang');
+      if (!/^[a-z]{2,3}-[A-Za-z0-9]{2,8}$/.test(target) || (source !== null && !/^[a-z]{2,3}$/.test(String(source)))) {
+        console.log(`POST rejected: INVALID_LANGUAGE_PAIR source_lang=${source} target_lang=${target}`);
+        return send(400, { detail: { code: 'INVALID_LANGUAGE_PAIR', message: `Invalid language pair ${source ?? 'auto'} -> ${target}` } });
+      }
       const id = randomBytes(6).toString('hex');
       files.set(id, { html: await form.get('file').text(), lang: String(form.get('target_lang') || '') });
       console.log(`POST target_lang=${form.get('target_lang')} source_lang=${form.get('source_lang')} politeness=${form.get('politeness') ?? '-'} -> ${id}`);

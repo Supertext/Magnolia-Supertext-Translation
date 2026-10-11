@@ -54,6 +54,19 @@ class SupertextSettingsTest {
     }
 
     @Test
+    void bareLocalesGetARegionAsTargetAndSourcesAreBare() {
+        SupertextTranslationModule module = new SupertextTranslationModule();
+        module.setLanguageMapping("it=it\nen_GB=EN_gb");
+        SupertextSettings s = settings(module, Map.of());
+
+        assertEquals("de-DE", s.targetLanguageCode(Locale.GERMAN), "bare locale: regional default");
+        assertEquals("it-IT", s.targetLanguageCode(Locale.ITALIAN), "bare mapping: regional default");
+        assertEquals("en-GB", s.targetLanguageCode(new Locale("en", "GB")), "mapping normalized");
+        assertEquals("en", s.sourceLanguageCode(new Locale("en", "GB")));
+        assertEquals("de", s.sourceLanguageCode(new Locale("de", "CH")));
+    }
+
+    @Test
     void propertyListsSplitOnCommasAndLines() {
         SupertextTranslationModule module = new SupertextTranslationModule();
         module.setExcludedProperties("teaser, subtitle\n\n code ");

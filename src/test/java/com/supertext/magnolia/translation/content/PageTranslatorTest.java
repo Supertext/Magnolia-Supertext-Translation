@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -21,6 +22,7 @@ import info.magnolia.cms.i18n.LocaleDefinition;
 import info.magnolia.test.mock.jcr.MockSession;
 
 import com.supertext.magnolia.translation.api.SupertextException;
+import com.supertext.sdk.Segment;
 
 class PageTranslatorTest {
 
@@ -30,7 +32,7 @@ class PageTranslatorTest {
     private SiteLanguages languages;
     private Node page;
     private Node text;
-    private final List<String> sent = new ArrayList<>();
+    private final List<Map<String, Segment>> sent = new ArrayList<>();
     private final List<Node> touched = new ArrayList<>();
 
     /** page: title, text component with rich text, a subpage. */
@@ -70,13 +72,19 @@ class PageTranslatorTest {
         };
     };
 
-    /** Stand-in for Supertext: prefixes every segment with the language. */
+    /** Stand-in for Supertext: prefixes every text with the language. */
     private PageTranslator translator(Set<String> excluded) {
-        return new PageTranslator(languages, FIELDS, (html, target, source) -> {
-            sent.add(target + ":" + html);
+        return new PageTranslator(languages, FIELDS, (texts, target, source) -> {
+            sent.add(texts);
             assertEquals(Locale.ENGLISH, source);
-            return html.replaceAll("(<div data-st-id=\"\\d+\">)", "$1[" + target.getLanguage() + "] ");
+            return prefixed(texts, "[" + target.getLanguage() + "] ");
         }, touched::add, excluded);
+    }
+
+    private static Map<String, String> prefixed(Map<String, Segment> texts, String prefix) {
+        Map<String, String> result = new LinkedHashMap<>();
+        texts.forEach((key, segment) -> result.put(key, prefix + segment.getText()));
+        return result;
     }
 
     @Test
@@ -92,7 +100,9 @@ class PageTranslatorTest {
         assertEquals(1, report.pages());
         assertEquals("[de] Read more", text.getNode("teaser").getProperty("teaserTitle_de_CH").getString(), "nested composite");
         assertEquals(6, report.translated());
-        assertEquals(2, sent.size(), "one document per language");
+        assertEquals(2, sent.size(), "one call per language");
+        assertEquals(List.of(Segment.text("Welcome"), Segment.html("<p>Hello <b>world</b></p>"), Segment.text("Read more")),
+                List.copyOf(sent.get(0).values()), "rich text is sent as HTML, one segment per field");
         assertTrue(touched.contains(page) && touched.contains(text), "changed nodes are marked modified");
     }
 
@@ -120,7 +130,7 @@ class PageTranslatorTest {
     void excludedPropertiesAreNotSent() throws Exception {
         translator(Set.of("title")).translate(new PageTranslator.Request(page, List.of(DE), false, false));
         assertFalse(page.hasProperty("title_de_CH"));
-        assertFalse(sent.get(0).contains("Welcome"));
+        assertFalse(sent.get(0).containsValue(Segment.text("Welcome")));
     }
 
     @Test
@@ -132,37 +142,37 @@ class PageTranslatorTest {
 
     @Test
     void oneFailingLanguageDoesNotStopTheOthers() throws Exception {
-        PageTranslator t = new PageTranslator(languages, FIELDS, (html, target, source) -> {
+        PageTranslator t = new PageTranslator(languages, FIELDS, (texts, target, source) -> {
             if (target.equals(DE)) {
                 throw new SupertextException("The Supertext service is currently unavailable.");
             }
-            return html.replace("Welcome", "Bienvenue");
+            return prefixed(texts, "Bienvenue ");
         }, n -> { }, Set.of());
 
         PageTranslator.Report report = t.translate(new PageTranslator.Request(page, List.of(DE, FR), false, false));
         assertTrue(report.anyFailed());
         assertEquals("The Supertext service is currently unavailable.", report.languages().get(0).error());
-        assertEquals("Bienvenue", page.getProperty("title_fr_CH").getString());
+        assertEquals("Bienvenue Welcome", page.getProperty("title_fr_CH").getString());
+        assertFalse(page.hasProperty("title_de_CH"), "nothing written for the failed language");
     }
 
     @Test
     void rejectedKeyAbortsEverything() {
-        PageTranslator t = new PageTranslator(languages, FIELDS, (html, target, source) -> {
+        PageTranslator t = new PageTranslator(languages, FIELDS, (texts, target, source) -> {
             throw new SupertextException("Authentication failed.", true, null);
         }, n -> { }, Set.of());
         assertThrows(SupertextException.class, () -> t.translate(new PageTranslator.Request(page, List.of(DE, FR), false, false)));
     }
 
     @Test
-    void largePagesAreSplitIntoSeveralDocuments() throws Exception {
-        PageTranslator t = new PageTranslator(languages, FIELDS, (html, target, source) -> {
-            sent.add(html);
-            return html;
-        }, n -> { }, Set.of(), 60);
-        t.translate(new PageTranslator.Request(page, List.of(DE), false, false));
-        assertEquals(3, sent.size(), "each segment is too big to share a document");
-        assertEquals("Welcome", page.getProperty("title_de_CH").getString());
-        assertEquals("<p>Hello <b>world</b></p>", text.getProperty("text_de_CH").getString());
+    void pagesWithoutTextsMakeNoRequest() throws Exception {
+        page.setProperty("title", " ");
+        text.setProperty("text", "");
+        text.getNode("teaser").setProperty("teaserTitle", "");
+        PageTranslator.Report report = translator(Set.of()).translate(new PageTranslator.Request(page, List.of(DE), false, false));
+        assertEquals(List.of(), sent);
+        assertEquals(0, report.translated());
+        assertFalse(report.anyFailed());
     }
 
     @Test

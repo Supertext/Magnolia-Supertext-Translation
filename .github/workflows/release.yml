@@ -79,6 +79,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
+          tools/sdk/install-sdk.sh
           mvn -B -q package
           test -f "target/magnolia-supertext-translation-$VERSION.jar"
 

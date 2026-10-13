@@ -15,7 +15,7 @@ import info.magnolia.i18nsystem.SimpleTranslator;
 import info.magnolia.ui.api.view.View;
 
 import com.supertext.magnolia.translation.SupertextSettings;
-import com.supertext.magnolia.translation.api.SupertextClient;
+import com.supertext.magnolia.translation.api.SupertextService;
 import com.supertext.magnolia.translation.api.SupertextConnection;
 import com.supertext.magnolia.translation.api.SupertextException;
 import com.supertext.magnolia.translation.ui.SupertextMessages;
@@ -47,7 +47,7 @@ public class SupertextSettingsView implements View {
     private static final String RELEASES = "https://github.com/Supertext/Magnolia-Supertext-Translation/releases";
 
     private final transient SupertextSettings settings;
-    private final transient SupertextClient client;
+    private final transient SupertextService supertext;
     private final transient SimpleTranslator i18n;
     private final transient SupertextMessages messages;
     private final transient SettingsStore store;
@@ -64,9 +64,9 @@ public class SupertextSettingsView implements View {
     private boolean keyStored;
 
     @Inject
-    public SupertextSettingsView(SupertextSettings settings, SupertextClient client, SimpleTranslator i18n) {
+    public SupertextSettingsView(SupertextSettings settings, SupertextService supertext, SimpleTranslator i18n) {
         this.settings = settings;
-        this.client = client;
+        this.supertext = supertext;
         this.i18n = i18n;
         this.messages = new SupertextMessages(i18n::translate);
         this.store = new SettingsStore();
@@ -85,7 +85,7 @@ public class SupertextSettingsView implements View {
         content.setSpacing(true);
         content.addStyleName("supertext-settings");
 
-        String version = SupertextClient.version();
+        String version = SupertextService.version();
         String versionLink = version.equals("dev") ? RELEASES : RELEASES + "/tag/v" + version;
         content.addComponent(html("<h2 style=\"margin:0\">" + t("supertext-translation.settings.title") + "</h2>"
                 + "<div>" + t("supertext-translation.settings.version", escape(version))
@@ -104,7 +104,7 @@ public class SupertextSettingsView implements View {
         }
 
         endpoint.setCaption(t("supertext-translation.settings.endpoint"));
-        endpoint.setPlaceholder(SupertextClient.DEFAULT_ENDPOINT);
+        endpoint.setPlaceholder(SupertextService.DEFAULT_ENDPOINT);
         endpoint.setWidth(100, Sizeable.Unit.PERCENTAGE);
         form.addComponent(endpoint);
         if (!settings.endpointFromEnvironment().isEmpty()) {
@@ -195,14 +195,14 @@ public class SupertextSettingsView implements View {
         String endpointValue = endpoint.getValue().trim();
         if (!endpointValue.isEmpty()) {
             try {
-                SupertextClient.checkEndpoint(endpointValue);
+                SupertextService.checkEndpoint(endpointValue);
             } catch (SupertextException e) {
                 Notification.show(messages.of(e), Notification.Type.WARNING_MESSAGE);
                 return;
             }
         }
         Map<String, String> values = new LinkedHashMap<>();
-        String key = SupertextClient.normalizeApiKey(apiKey.getValue());
+        String key = SupertextService.normalizeApiKey(apiKey.getValue());
         values.put(SettingsStore.API_KEY, key.isEmpty() ? null : key);
         values.put(SettingsStore.ENDPOINT, endpointValue);
         values.put(SettingsStore.POLITENESS, politeness.getValue() == null ? "default" : politeness.getValue());
@@ -223,13 +223,13 @@ public class SupertextSettingsView implements View {
     /** Checks the key typed in the field, or the one in effect when the field is empty. */
     private void check() {
         SupertextConnection current = settings.connection();
-        String typed = SupertextClient.normalizeApiKey(apiKey.getValue());
+        String typed = SupertextService.normalizeApiKey(apiKey.getValue());
         String typedEndpoint = endpoint.getValue().trim();
         SupertextConnection connection = new SupertextConnection(
                 settings.endpointFromEnvironment().isEmpty() && !typedEndpoint.isEmpty() ? typedEndpoint : current.endpoint(),
                 typed.isEmpty() || !settings.apiKeyFromEnvironment().isEmpty() ? current.apiKey() : typed);
         try {
-            client.validateApiKey(connection);
+            supertext.validateApiKey(connection);
             status.setValue("<span style=\"color:#2e7d32\">✓ " + escape(t("supertext-translation.settings.checkOk", connection.endpoint())) + "</span>");
         } catch (SupertextException e) {
             String hint = e.isAuthenticationProblem() ? "<br>" + messages.htmlHint() : "";

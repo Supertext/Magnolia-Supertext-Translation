@@ -5,6 +5,9 @@
 
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /src
+# The Supertext Java SDK isn't on Maven Central yet: build it at the pinned commit.
+COPY tools/sdk/install-sdk.sh tools/sdk/install-sdk.sh
+RUN tools/sdk/install-sdk.sh
 # Module first (its dependencies are cached in their own layer).
 COPY pom.xml pom.xml
 RUN mvn -B -q dependency:go-offline -DexcludeArtifactIds=magnolia-supertext-translation || true

@@ -15,8 +15,8 @@
       <scope>singleton</scope>
     </component>
     <component>
-      <type>com.supertext.magnolia.translation.api.SupertextClient</type>
-      <implementation>com.supertext.magnolia.translation.api.SupertextClient</implementation>
+      <type>com.supertext.magnolia.translation.api.SupertextService</type>
+      <implementation>com.supertext.magnolia.translation.api.SupertextService</implementation>
       <scope>singleton</scope>
     </component>
   </components>

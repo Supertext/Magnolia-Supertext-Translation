@@ -50,8 +50,9 @@ The dialog, the messages and the Supertext app follow your AdminCentral interfac
 | --- | --- |
 | *6 texts translated into German (Switzerland).* | Done. Review and publish. |
 | *… texts already had a translation and were kept* | Those texts were translated before (or edited). Tick *Overwrite existing translations* to replace them. |
-| *… texts came back unusable and were left unchanged* | Supertext returned those texts damaged or empty; they keep what they had. Try again, or translate them by hand. |
 | *Nothing to translate* | The page has no texts in the main language (or none that are multilingual). |
 | *Italian (Switzerland): …* (in a message titled *with problems*) | That language failed; the others were saved. The reason follows, e.g. *Too many requests* (try again in a minute). |
+| *Italian (Switzerland): Supertext’s answer was incomplete* | Supertext sent back the page with texts missing. Nothing was saved for that language, so no field is half translated. Try again. |
+| *Supertext does not accept this language pair* | The language code sent for that language isn’t one Supertext knows. Ask your administrator to check *Language codes* in the Supertext app. |
 | *No Supertext API key configured* / *Authentication failed* | Ask your administrator to check the Supertext app. The dialog stays open; nothing was changed. |
 | *Translate into* is marked red | Pick at least one language. |

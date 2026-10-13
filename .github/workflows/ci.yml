@@ -24,6 +24,8 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '22'
+      - name: Supertext SDK (not on Maven Central yet)
+        run: tools/sdk/install-sdk.sh
       - name: Module and unit tests
         run: mvn -B install
       - name: Demo webapp

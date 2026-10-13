@@ -32,6 +32,8 @@
     <!-- Provided by Magnolia: keep it at the version magnolia.version ships (mvn dependency:tree). -->
     <vaadin.version>8.30.0</vaadin.version>
     <junit.version>6.1.3</junit.version>
+    <!-- Not on Maven Central yet: tools/sdk/install-sdk.sh builds it (keep the version in sync there). -->
+    <supertext-sdk.version>0.1.0</supertext-sdk.version>
   </properties>
 
   <repositories>
@@ -85,18 +87,11 @@
       <version>${vaadin.version}</version>
       <scope>provided</scope>
     </dependency>
-    <!-- Shipped with magnolia-core: keep the versions magnolia.version ships (mvn dependency:tree). -->
+    <!-- Supertext API client. Shaded into the module's jar (relocated), so the jar stays the only file to install. -->
     <dependency>
-      <groupId>org.jsoup</groupId>
-      <artifactId>jsoup</artifactId>
-      <version>1.23.2</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <version>2.18.9</version>
-      <scope>provided</scope>
+      <groupId>com.supertext</groupId>
+      <artifactId>supertext-sdk</artifactId>
+      <version>${supertext-sdk.version}</version>
     </dependency>
 
     <!-- Tests -->
@@ -156,11 +151,48 @@
         <configuration>
           <archive>
             <manifest>
-              <!-- Implementation-Version: shown in Tools → Supertext and sent as User-Agent. -->
+              <!-- Implementation-Version: shown in the Supertext app and sent as User-Agent. -->
               <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
             </manifest>
           </archive>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.6.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <dependencyReducedPomLocation>${project.build.directory}/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+              <artifactSet>
+                <includes>
+                  <include>com.supertext:supertext-sdk</include>
+                </includes>
+              </artifactSet>
+              <!-- Own package: no clash with another plugin or webapp that ships the SDK too. -->
+              <relocations>
+                <relocation>
+                  <pattern>com.supertext.sdk</pattern>
+                  <shadedPattern>com.supertext.magnolia.translation.internal.sdk</shadedPattern>
+                </relocation>
+              </relocations>
+              <filters>
+                <filter>
+                  <artifact>com.supertext:supertext-sdk</artifact>
+                  <excludes>
+                    <exclude>META-INF/MANIFEST.MF</exclude>
+                    <exclude>META-INF/maven/**</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

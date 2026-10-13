@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import com.supertext.magnolia.translation.api.SupertextClient;
+import com.supertext.magnolia.translation.api.SupertextService;
 import com.supertext.magnolia.translation.api.SupertextException;
 import com.supertext.magnolia.translation.api.SupertextLinks;
 
@@ -137,7 +137,7 @@ class MessageBundlesTest {
                 }
                 Matcher e = errorKey.matcher(source);
                 while (e.find()) {
-                    used.add(SupertextClient.KEY_PREFIX + e.group(1));
+                    used.add(SupertextService.KEY_PREFIX + e.group(1));
                 }
             }
         }
@@ -154,7 +154,7 @@ class MessageBundlesTest {
     void errorsAreShownInTheEditorsLanguage() {
         SupertextException e = null;
         try {
-            SupertextClient.checkEndpoint("http://example.com/v1/");
+            SupertextService.checkEndpoint("http://example.com/v1/");
         } catch (SupertextException ex) {
             e = ex;
         }

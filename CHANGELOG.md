@@ -4,12 +4,18 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+### Changed
+
+- The module now talks to Supertext through the [Supertext Java SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide), shaded into the module's jar: still one jar to install, no new libraries. Same protocol, retries and settings as before.
+- If Supertext's answer is missing some texts, that language now fails with *Supertext’s answer was incomplete* and nothing is saved for it, instead of saving the rest and reporting *… texts came back unusable*. A page is no longer left half translated.
+
 ### Fixed
 
 - Target languages without a region (e.g. a site locale `de`, or a *Language codes* entry `de=de`) are now sent as `de-DE`; Supertext rejects target languages without a region. Codes like `de_ch` are normalized to `de-CH`.
 
 ### Added
 
+- Clearer message when Supertext rejects a language code: *Supertext does not accept this language pair (source …, target …)*, with a pointer to *Language codes*.
 - French and Italian interface (and German where it was missing): the dialog, messages and Supertext app follow the user's AdminCentral language. Supertext error messages (e.g. *Too many requests*, *Authentication failed*) and the API key hint are now translated too.
 
 ## 0.1.0 — 2026-10-07

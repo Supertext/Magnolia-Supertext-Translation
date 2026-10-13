@@ -11,11 +11,10 @@ import java.util.function.Supplier;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
-import com.supertext.magnolia.translation.ui.settings.SettingsStore;
-
-import com.supertext.magnolia.translation.api.LanguageCodes;
-import com.supertext.magnolia.translation.api.SupertextClient;
 import com.supertext.magnolia.translation.api.SupertextConnection;
+import com.supertext.magnolia.translation.api.SupertextService;
+import com.supertext.magnolia.translation.ui.settings.SettingsStore;
+import com.supertext.sdk.LanguageCodes;
 
 /**
  * The settings in effect: the module configuration (edited in the Supertext app), with the API key and endpoint
@@ -63,9 +62,9 @@ public class SupertextSettings {
     public SupertextConnection connection() {
         SupertextTranslationModule m = module();
         String apiKey = firstNonEmpty(apiKeyFromEnvironment(), m.getApiKey());
-        String endpoint = firstNonEmpty(endpointFromEnvironment(), m.getEndpoint(), SupertextClient.DEFAULT_ENDPOINT);
+        String endpoint = firstNonEmpty(endpointFromEnvironment(), m.getEndpoint(), SupertextService.DEFAULT_ENDPOINT);
         int timeout = m.getPollTimeoutSeconds() > 0 ? m.getPollTimeoutSeconds() : 300;
-        return new SupertextConnection(endpoint, SupertextClient.normalizeApiKey(apiKey), 2000, timeout);
+        return new SupertextConnection(endpoint, SupertextService.normalizeApiKey(apiKey), 2000, timeout);
     }
 
     public boolean hasApiKey() {
@@ -80,15 +79,21 @@ public class SupertextSettings {
     /**
      * The target code sent to Supertext for a Magnolia locale: the language mapping if it has an
      * entry (matched on {@code de_CH}, {@code de-CH} or {@code de}), else the BCP-47 tag, always
-     * with a region ({@code de} → {@code de-DE}; see {@link LanguageCodes}).
+     * with a region ({@code de} → {@code de-DE}; the SDK's {@link LanguageCodes}).
      */
     public String targetLanguageCode(Locale locale) {
-        return LanguageCodes.target(locale.toLanguageTag(), mappedCode(locale));
+        return LanguageCodes.target(codeFor(locale));
     }
 
     /** The source code sent to Supertext: the bare language of the mapping entry or locale ({@code en_GB} → {@code en}). */
     public String sourceLanguageCode(Locale locale) {
-        return LanguageCodes.source(locale.toLanguageTag(), mappedCode(locale));
+        return LanguageCodes.source(codeFor(locale));
+    }
+
+    /** The mapping entry for the locale, else its BCP-47 tag. */
+    private String codeFor(Locale locale) {
+        String mapped = mappedCode(locale);
+        return mapped != null ? mapped : locale.toLanguageTag();
     }
 
     private String mappedCode(Locale locale) {

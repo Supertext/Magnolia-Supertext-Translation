@@ -31,7 +31,7 @@ import info.magnolia.ui.editor.EditorView;
 import info.magnolia.ui.observation.DatasourceObservation;
 
 import com.supertext.magnolia.translation.SupertextSettings;
-import com.supertext.magnolia.translation.api.SupertextClient;
+import com.supertext.magnolia.translation.api.SupertextService;
 import com.supertext.magnolia.translation.api.SupertextException;
 import com.supertext.magnolia.translation.content.DialogFieldResolver;
 import com.supertext.magnolia.translation.content.PageTranslator;
@@ -57,7 +57,7 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
     private final CloseHandler closeHandler;
     private final DatasourceObservation.Manual<Node> datasourceObservation;
     private final SupertextSettings settings;
-    private final SupertextClient client;
+    private final SupertextService supertext;
     private final SiteManager siteManager;
     private final I18nContentSupport i18nContentSupport;
     private final TemplateDefinitionRegistry templates;
@@ -67,7 +67,7 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
 
     @Inject
     public TranslateAction(TranslateActionDefinition definition, ValueContext<Node> valueContext, EditorView<Node> form, CloseHandler closeHandler,
-                           DatasourceObservation.Manual<Node> datasourceObservation, SupertextSettings settings, SupertextClient client,
+                           DatasourceObservation.Manual<Node> datasourceObservation, SupertextSettings settings, SupertextService supertext,
                            SiteManager siteManager, I18nContentSupport i18nContentSupport, TemplateDefinitionRegistry templates,
                            DialogDefinitionRegistry dialogs, SimpleTranslator i18n) {
         super(definition);
@@ -76,7 +76,7 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
         this.closeHandler = closeHandler;
         this.datasourceObservation = datasourceObservation;
         this.settings = settings;
-        this.client = client;
+        this.supertext = supertext;
         this.siteManager = siteManager;
         this.i18nContentSupport = i18nContentSupport;
         this.templates = templates;
@@ -118,7 +118,8 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
         PageTranslator translator = new PageTranslator(
                 languages,
                 new DialogFieldResolver(templates, dialogs, settings.additionalProperties()),
-                (html, target, source) -> client.translateDocument(settings.connection(), html, settings.targetLanguageCode(target), settings.sourceLanguageCode(source), settings.politeness()),
+                (texts, target, source) -> supertext.translateTexts(settings.connection(), texts,
+                        settings.targetLanguageCode(target), settings.sourceLanguageCode(source), settings.politeness()),
                 NodeTypes.LastModified::update,
                 settings.excludedProperties());
         PageTranslator.Report report;
@@ -145,7 +146,6 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
         String title = pageTitle(page);
         List<String> ok = report.languages().stream().filter(r -> !r.failed() && r.translated() > 0).map(r -> SiteLanguagesLookup.displayName(r.locale())).toList();
         int kept = report.languages().stream().mapToInt(PageTranslator.LanguageResult::kept).sum();
-        int unchanged = report.languages().stream().mapToInt(PageTranslator.LanguageResult::unchanged).sum();
 
         List<String> lines = new ArrayList<>();
         if (!ok.isEmpty()) {
@@ -156,9 +156,6 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
         }
         if (kept > 0) {
             lines.add(t("supertext-translation.translate.kept", kept));
-        }
-        if (unchanged > 0) {
-            lines.add(t("supertext-translation.translate.unchanged", unchanged));
         }
         if (!report.anyFailed() && report.translated() == 0 && kept == 0) {
             lines.add(t("supertext-translation.translate.nothing"));

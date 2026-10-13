@@ -12,7 +12,7 @@ For administrators who install and configure the module.
 
 ## Install
 
-The module is a single jar, `magnolia-supertext-translation-X.Y.Z.jar`, attached to every [GitHub release](https://github.com/Supertext/Magnolia-Supertext-Translation/releases). It needs no other libraries (everything it uses ships with Magnolia).
+The module is a single jar, `magnolia-supertext-translation-X.Y.Z.jar`, attached to every [GitHub release](https://github.com/Supertext/Magnolia-Supertext-Translation/releases). It needs no other libraries: everything it uses ships with Magnolia, and the [Supertext Java SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide) it talks to Supertext with is inside the jar (in its own package, so it doesn't clash with other software that uses the SDK).
 
 **Maven webapp project** (the usual Magnolia setup): install the jar into your Maven repository and add it to the webapp's `pom.xml`:
 
@@ -29,7 +29,7 @@ mvn install:install-file -Dfile=magnolia-supertext-translation-0.1.0.jar \
 </dependency>
 ```
 
-(Or build it from this repository with `mvn install`, which puts the same artifact into your local Maven repository.)
+(Or build it from this repository: `tools/sdk/install-sdk.sh` once, which builds the Supertext SDK, then `mvn install`, which puts the same artifact into your local Maven repository.)
 
 **Existing installation without a build:** copy the jar into the webapp's `WEB-INF/lib` folder (author instance; public instances don't need it).
 
@@ -152,6 +152,8 @@ The module's own screens (the *Translate with Supertext* action and dialog, its 
 | *Timed out waiting for the Supertext translation* | Very long pages (or with subpages): raise the timeout. |
 | *Your Supertext translation limit is exceeded* | Contact Supertext about your plan. |
 | *Could not reach Supertext* | The server can't connect to `api.supertext.com` (firewall, proxy). Magnolia uses the JVM's proxy settings (`https.proxyHost`, `https.proxyPort`). |
+| *Supertext does not accept this language pair (source …, target …)* | The code sent for that language isn't one Supertext knows. Map the locale to a code Supertext supports under *Language codes* (e.g. `de=de-CH`). |
+| *Supertext’s answer was incomplete* | Texts were missing from the translated page; nothing was saved for that language. Translate again; if it keeps happening, send the page's content and the time to Supertext support. |
 | No *Translate with Supertext* action | The user can't edit the page, the page is marked for deletion, or the module isn't installed (check the log). |
 | A field stays in the source language | Its dialog doesn't mark it `i18n: true`, it's excluded under *Never translate*, or it's a field type that isn't translated (see the user guide). Add it under *Also translate* if it holds text. |
 

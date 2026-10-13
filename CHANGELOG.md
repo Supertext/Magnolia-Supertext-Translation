@@ -6,12 +6,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
-- The module now talks to Supertext through the [Supertext Java SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide), shaded into the module's jar: still one jar to install, no new libraries. Same protocol, retries and settings as before.
+- The module now talks to Supertext through the [Supertext Java SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide), bundled in the module's jar: still one jar to install, no new libraries. Same protocol, retries and settings as before.
 - If Supertext's answer is missing some texts, that language now fails with *Supertext’s answer was incomplete* and nothing is saved for it, instead of saving the rest and reporting *… texts came back unusable*. A page is no longer left half translated.
 
 ### Fixed
 
 - Target languages without a region (e.g. a site locale `de`, or a *Language codes* entry `de=de`) are now sent as `de-DE`; Supertext rejects target languages without a region. Codes like `de_ch` are normalized to `de-CH`.
+- A target language Supertext doesn't know is now reported as an unsupported language pair (was: *The requested Supertext resource was not found*).
+- Locale variants such as `de_DE_formal` (in *Language codes*) are sent to Supertext as `de-DE`.
 
 ### Added
 

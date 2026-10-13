@@ -15,7 +15,7 @@ import javax.jcr.PropertyType;
 import javax.jcr.RepositoryException;
 
 import com.supertext.magnolia.translation.api.SupertextException;
-import com.supertext.sdk.Segment;
+import com.supertext.magnolia.translation.internal.sdk.Segment;
 
 /**
  * Translates a page (its own properties, and those of its areas and components) from the

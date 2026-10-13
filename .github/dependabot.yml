@@ -9,7 +9,6 @@ updates:
     ignore:
       - dependency-name: "info.magnolia*"  # the Magnolia version we compile against is the oldest one we support
       - dependency-name: "com.vaadin:*"  # must be the Vaadin that Magnolia ships
-      - dependency-name: "com.supertext:supertext-sdk"  # not on Maven Central yet: pinned in tools/sdk/install-sdk.sh
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]

@@ -24,9 +24,9 @@ import java.util.Properties;
 
 import org.junit.jupiter.api.Test;
 
-import com.supertext.sdk.ErrorCode;
-import com.supertext.sdk.Segment;
-import com.supertext.sdk.Transport;
+import com.supertext.magnolia.translation.internal.sdk.ErrorCode;
+import com.supertext.magnolia.translation.internal.sdk.Segment;
+import com.supertext.magnolia.translation.internal.sdk.Transport;
 
 /** The adapter on the SDK, against a fake transport that behaves like Supertext. */
 class SupertextServiceTest {
@@ -152,6 +152,23 @@ class SupertextServiceTest {
     }
 
     @Test
+    void unknownLanguageIsAnInvalidLanguagePairNotNotFound() {
+        // The live API answers a language it doesn't know at all with HTTP 404 INVALID_LANGUAGE_PAIR.
+        uploadAnswers.add(json(404, "{\"error_code\":\"INVALID_LANGUAGE_PAIR\",\"source_lang\":\"en\",\"target_lang\":\"xx-YY\"}"));
+        SupertextException e = assertThrows(SupertextException.class,
+                () -> service.translateTexts(CONNECTION, texts(), "xx-YY", "en", "default"));
+        assertEquals("supertext-translation.error.invalidLanguagePair", e.key());
+        assertArrayEquals(new Object[] {"en", "xx-YY"}, e.args());
+    }
+
+    @Test
+    void localeVariantsAreDropped() throws Exception {
+        service.translateTexts(CONNECTION, texts(), "de_DE_formal", "en", "default");
+        String form = body(requests.get(0));
+        assertTrue(form.contains("name=\"target_lang\"\r\n\r\nde-DE\r\n"), form);
+    }
+
+    @Test
     void rateLimitIsRetriedWithoutWaitingForReal() throws Exception {
         uploadAnswers.add(new Transport.Response(429, Map.of("Retry-After", "2"), "RATE_LIMIT_EXCEEDED"));
         uploadAnswers.add(new Transport.Response(429, Map.of(), "RATE_LIMIT_EXCEEDED"));
@@ -226,7 +243,7 @@ class SupertextServiceTest {
             en.load(new InputStreamReader(in, StandardCharsets.UTF_8));
         }
         for (ErrorCode code : ErrorCode.values()) {
-            SupertextException e = SupertextService.convert(new com.supertext.sdk.SupertextException(code, "English"), "en", "de-DE");
+            SupertextException e = SupertextService.convert(new com.supertext.magnolia.translation.internal.sdk.SupertextException(code, "English"), "en", "de-DE");
             assertTrue(en.containsKey(e.key()), code + " → " + e.key());
             assertEquals(code == ErrorCode.MISSING_API_KEY || code == ErrorCode.AUTHENTICATION_FAILURE, e.isAuthenticationProblem(), code.value());
             assertFalse(e.key().endsWith(".http") && code != ErrorCode.UNEXPECTED_STATUS, code + " has its own message");

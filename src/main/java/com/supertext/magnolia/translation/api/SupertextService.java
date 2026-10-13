@@ -6,15 +6,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import com.supertext.sdk.ErrorCode;
-import com.supertext.sdk.Politeness;
-import com.supertext.sdk.Segment;
-import com.supertext.sdk.SupertextClient;
-import com.supertext.sdk.Transport;
+import com.supertext.magnolia.translation.internal.sdk.ErrorCode;
+import com.supertext.magnolia.translation.internal.sdk.Politeness;
+import com.supertext.magnolia.translation.internal.sdk.Segment;
+import com.supertext.magnolia.translation.internal.sdk.SupertextClient;
+import com.supertext.magnolia.translation.internal.sdk.Transport;
 
 /**
- * The module's access to Supertext, on top of the Supertext Java SDK ({@code com.supertext.sdk},
- * shaded into the module's jar). The SDK does the protocol (upload, poll, download, delete, 429
+ * The module's access to Supertext, on top of the Supertext Java SDK ({@code com.supertext.magnolia.translation.internal.sdk},
+ * bundled in lib/supertext-sdk and compiled into the module's jar). The SDK does the protocol (upload, poll, download, delete, 429
  * retries, packing texts into {@code data-st-id} documents); this class adds what is Magnolia's:
  * the connection from the settings, the https-only endpoint rule, the module version in the
  * User-Agent, and errors as {@link SupertextException} with a message key the UI translates.
@@ -61,7 +61,7 @@ public class SupertextService {
         String source = sourceLanguage == null || sourceLanguage.isBlank() ? null : sourceLanguage;
         try {
             return client.translateTexts(texts, targetLanguage, source, Politeness.fromValue(politeness));
-        } catch (com.supertext.sdk.SupertextException e) {
+        } catch (com.supertext.magnolia.translation.internal.sdk.SupertextException e) {
             throw convert(e, source, targetLanguage);
         }
     }
@@ -71,7 +71,7 @@ public class SupertextService {
         SupertextClient client = client(connection);
         try {
             client.validateApiKey();
-        } catch (com.supertext.sdk.SupertextException e) {
+        } catch (com.supertext.magnolia.translation.internal.sdk.SupertextException e) {
             throw convert(e, null, null);
         }
     }
@@ -98,7 +98,7 @@ public class SupertextService {
     }
 
     /** The SDK's error as the module's: message key and arguments for the UI, English message for the log. */
-    static SupertextException convert(com.supertext.sdk.SupertextException e, String sourceLanguage, String targetLanguage) {
+    static SupertextException convert(com.supertext.magnolia.translation.internal.sdk.SupertextException e, String sourceLanguage, String targetLanguage) {
         ErrorCode code = e.getCode();
         String detail = shorten(e.getDetail());
         String message = e.getMessage();

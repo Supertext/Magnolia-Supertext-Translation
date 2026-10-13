@@ -3,4 +3,3 @@
 **/node_modules/
 docs/
 tools/
-!tools/sdk/install-sdk.sh

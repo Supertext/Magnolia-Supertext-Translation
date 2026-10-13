@@ -24,7 +24,7 @@ App launcher → Translation → Supertext (superuser)
 | `supertext-translation/decorations/pages-app/apps/pages-app.yaml` | Adds the action `translateWithSupertext` to the browser (`crud` section, `edit` group) and to the page editor (`pageActions` section, `edit` group). Decorated lists merge by item `name`, so the item is appended to Magnolia's own groups. Availability: write permission, `mgnl:page`, not marked for deletion. |
 | `supertext-translation/dialogs/translate.yaml` | The dialog. Not bound to the page (`populate: false`): `TranslateAction` reads the values with `EditorView.getPropertyValue`. |
 | `supertext-translation/apps/supertext.yaml`, `decorations/admincentral/config.yaml` | The Supertext app (`ConfiguredAppDescriptor`, `BaseApp`, one sub-app), `superuser` only, in the launcher group `translation` (Magnolia 6.4's layout has no *Tools* group). |
-| Supertext Java SDK (`com.supertext.sdk`) | The [Supertext SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide) does the protocol (below): `translateTexts` packs the texts into HTML documents (`<div data-st-id="N">`, at most 900 000 characters each), uploads, polls, downloads, reads the texts back and deletes the file; 429 retries; one `Authorization` prefix; `LanguageCodes` for the source and target codes. Plain text is HTML-encoded (line breaks as `<br>`); rich text goes as it is, **one segment per field**. Magnolia's internal links (`${link:{…}}`) are in `href` attributes, which Supertext keeps. Shaded into the module's jar as `com.supertext.magnolia.translation.internal.sdk` (see *Supertext SDK*). |
+| Supertext Java SDK (`…translation.internal.sdk`, `lib/supertext-sdk/`) | The [Supertext SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide) does the protocol (below): `translateTexts` packs the texts into HTML documents (`<div data-st-id="N">`, at most 900 000 characters each), uploads, polls, downloads, reads the texts back and deletes the file; 429 retries; one `Authorization` prefix; `LanguageCodes` for the source and target codes. Plain text is HTML-encoded (line breaks as `<br>`); rich text goes as it is, **one segment per field**. Magnolia's internal links (`${link:{…}}`) are in `href` attributes, which Supertext keeps. Bundled in `lib/supertext-sdk/` and compiled into the module's jar as `com.supertext.magnolia.translation.internal.sdk` (see *Supertext SDK*). |
 | `api/SupertextService` | The module's adapter on the SDK: builds a client from the settings (endpoint, key without a pasted prefix, poll interval, timeout, User-Agent `Supertext-Magnolia/<version>`), allows only https endpoints (http for localhost), and turns the SDK's error codes into `SupertextException`s with a message key (table under *Errors*). No Magnolia classes; unit-tested with a fake SDK `Transport`. |
 | `content/SiteLanguages`, `ui/SiteLanguagesLookup` | The page's site (`SiteManager.getAssignedSite(page).getI18n()`, falling back to the global `I18nContentSupport`). The default locale is the source; property names follow Magnolia's dialogs: the default locale is the bare name, others get `"_" + I18nContentSupport.getLanguageString(locale)` (`title_de_CH`). |
 | `content/DialogFieldResolver` | Which properties to translate: the node's `mgnl:template` → `TemplateDefinition.getDialog()` → `DialogDefinitionRegistry` → a Magnolia 6 `FormDialogDefinition`; every `TextFieldDefinition` (plain) and `RichTextFieldDefinition` (HTML) with `i18n: true`. Composite fields: sub-fields on the same node (`CurrentItemProviderDefinition`) or in a child node (`NestedContentProvider`/`JcrChildNodeProviderDefinition`, `TranslatableField.childNode`); an `i18n` composite with child nodes (one child node per locale) is skipped. Plus the *Also translate* property names. |
@@ -52,7 +52,7 @@ Header `Authorization: Supertext-Auth-Key <key>` (a pasted prefix is stripped, e
 | --- | --- | --- |
 | `missing_api_key` | `noApiKey` | Key problem: the dialog stays open and shows the links. |
 | `authentication_failure` | `authentication` | Key problem, as above. |
-| `invalid_language_pair` | `invalidLanguagePair` | `{0}` source, `{1}` target code. |
+| `invalid_language_pair` | `invalidLanguagePair` | `{0}` source, `{1}` target code. Also a language Supertext doesn't know at all (HTTP 404 with `INVALID_LANGUAGE_PAIR`), not `not_found`. |
 | `not_found`, `payload_too_large`, `too_many_requests`, `service_unavailable` | `notFound`, `tooLarge`, `rateLimit`, `unavailable` | |
 | `unexpected_status` | `http` | `{0}` the HTTP status. |
 | `transport_error` | `unreachable` | `{0}` the reason (connection refused, timeout, …). |
@@ -66,7 +66,7 @@ Supertext's answer, if any, is shown in brackets after the message. Endpoint pro
 Supertext rejects a bare target (`de`) and a regional source (`en-GB`) with `INVALID_LANGUAGE_PAIR`. The SDK's `LanguageCodes` makes the codes; `SupertextSettings.targetLanguageCode`/`sourceLanguageCode` feed it the *Language codes* mapping entry (matched on `de_CH`, `de-CH` or, as a fallback, the language `de`) or else the locale's BCP-47 tag:
 
 - **Source:** the bare language of the mapping entry, else of the locale: `en_US`, `en_GB` → `en`.
-- **Target:** the mapping entry, else the locale's BCP-47 tag, normalized (`de_ch` → `de-CH`; scripts and numeric regions keep their form: `zh-Hant`, `es-419`). Magnolia sites often use bare locales (`de`); a code without a region gets a default: ar-SA, bg-BG, cs-CZ, da-DK, de-DE, el-GR, en-US, es-ES, et-EE, fi-FI, fr-FR, hr-HR, hu-HU, it-IT, ja-JP, ko-KR, lt-LT, lv-LV, nb-NO, nl-NL, pl-PL, pt-PT, ro-RO, ru-RU, sk-SK, sl-SI, sr-RS, sv-SE, th-TH, tr-TR, uk-UA, vi-VN, zh-CN (the SDK's `LanguageCodes.DEFAULT_REGIONS`, the same table in every Supertext plugin). Unknown bare codes are sent unchanged, so Supertext's error names them.
+- **Target:** the mapping entry, else the locale's BCP-47 tag, normalized (`de_ch` → `de-CH`; scripts and numeric regions keep their form: `zh-Hant`, `es-419`; variants and extensions are dropped: `de_DE_formal` → `de-DE`). Magnolia sites often use bare locales (`de`); a code without a region gets a default: ar-SA, bg-BG, cs-CZ, da-DK, de-DE, el-GR, en-US, es-ES, et-EE, fi-FI, fr-FR, hr-HR, hu-HU, it-IT, ja-JP, ko-KR, lt-LT, lv-LV, nb-NO, nl-NL, pl-PL, pt-PT, ro-RO, ru-RU, sk-SK, sl-SI, sr-RS, sv-SE, th-TH, tr-TR, uk-UA, vi-VN, zh-CN (the SDK's `LanguageCodes.DEFAULT_REGIONS`, the same table in every Supertext plugin). Unknown bare codes are sent unchanged, so Supertext's error names them.
 - Translating within one language (source `en`, target `en-GB`) is allowed.
 
 The stand-in (`tools/docs/stand-in.mjs`) rejects bare targets and regional sources like the live API.
@@ -76,8 +76,7 @@ The stand-in (`tools/docs/stand-in.mjs`) rejects bare targets and regional sourc
 Java 21, Maven 3.9, Docker, Node 20+ (stand-in API, end-to-end check, screenshots). Magnolia's artifacts come from `https://nexus.magnolia-cms.com/content/groups/public` (declared in the poms), some Vaadin add-ons from `https://maven.vaadin.com/vaadin-addons`.
 
 ```bash
-tools/sdk/install-sdk.sh                      # once: the Supertext Java SDK, into ~/.m2 (see Supertext SDK)
-mvn install                                   # module + unit tests, into ~/.m2
+mvn install                                   # module (with the bundled SDK) + unit tests, into ~/.m2
 mvn -f demo/pom.xml package                   # demo webapp: demo/target/ROOT.war
 docker build -f demo/Dockerfile -t supertext-magnolia-demo .   # what Railway builds
 
@@ -95,11 +94,10 @@ Magnolia's default log config sets `com` to `WARN`; the demo's `log4j2.xml` adds
 
 ### Supertext SDK
 
-The module uses the Java SDK from [Supertext-API-SDK-and-Guide](https://github.com/Supertext/Supertext-API-SDK-and-Guide) (`sdk/java`, `com.supertext:supertext-sdk`, Java 11+, no dependencies). It isn't on Maven Central yet, so `tools/sdk/install-sdk.sh` builds it at a pinned commit and installs it into the local Maven repository; CI, the release workflow and `demo/Dockerfile` run the script before Maven. It does nothing when that commit is installed already (it notes the commit next to the jar, so a cached `~/.m2` with an older build of the same version is rebuilt; `SUPERTEXT_SDK_FORCE=1` always rebuilds); `SUPERTEXT_SDK_SRC=<checkout>` builds from a local clone instead (for working on the SDK and the module together).
+The module bundles the Java SDK from [Supertext-API-SDK-and-Guide](https://github.com/Supertext/Supertext-API-SDK-and-Guide) (`sdk/java`, Java 11+, no dependencies) as source in `lib/supertext-sdk/`: the SDK's classes, `LICENSE`, `COMMIT` (the full SDK commit SHA), `VERSION` (the SDK's package version) and a short README, with the package changed from `com.supertext.sdk` to `com.supertext.magnolia.translation.internal.sdk`. The `build-helper-maven-plugin` adds `lib/supertext-sdk/src` as a source folder, so `mvn install` compiles the SDK into the module's jar: administrators still install one jar, another plugin or the webapp can ship its own SDK without a clash, and no build step or local Maven install is needed before Maven (CI, the release workflow and `demo/Dockerfile` just run Maven; the Dockerfile copies `lib/`). The SDK's MIT licence is in the jar as `META-INF/LICENSE-supertext-sdk.txt`.
 
-The [maven-shade-plugin](https://maven.apache.org/plugins/maven-shade-plugin/) copies the SDK into the module's jar and relocates it to `com.supertext.magnolia.translation.internal.sdk`, so administrators still install one jar, and another plugin or the webapp can ship its own SDK version without a clash. The installed pom no longer lists the SDK (dependency-reduced pom), so `demo/pom.xml` and users' webapps need nothing extra. The SDK's MIT licence is in the jar as `META-INF/LICENSE-supertext-sdk.txt`.
-
-**Updating the SDK:** set the new commit (and version, if it changed) in `tools/sdk/install-sdk.sh`, the version in `pom.xml` (`supertext-sdk.version`), run `SUPERTEXT_SDK_FORCE=1 tools/sdk/install-sdk.sh && mvn verify`, and note the change in `CHANGELOG.md`. Dependabot ignores the SDK until it is on Maven Central; then delete the script and its three calls, and let Maven download it.
+- Update it with `scripts/vendor-sdk.sh [commit-or-branch]` (default `main`; `SDK_DIR=/path/to/clone` uses a local clone as it is), then `mvn verify`, and note user-visible changes in `CHANGELOG.md`.
+- Never edit `lib/supertext-sdk/`: fix the SDK in its own repository, then re-run the script.
 
 ### Interface strings
 
@@ -117,7 +115,7 @@ mvn test        # SupertextService (fake SDK transport: request, auth header, 42
 
 End to end against a running demo and the stand-in: `cd tools/docs && DEMO_URL=http://localhost:8080 DEMO_EDITOR_EMAIL=… DEMO_EDITOR_PASSWORD=… npm run e2e` signs in as the editor, translates the sample page into German in the Pages app and checks `/de_CH/supertext-demo.html`.
 
-CI (`.github/workflows/ci.yml`): installs the SDK (`tools/sdk/install-sdk.sh`), builds and tests the module, builds the demo image from `demo/Dockerfile`, starts it with test accounts and the stand-in, checks that both accounts were created and that no password appears in the log (the log is captured into a variable first; never `docker logs … | grep -q` under `pipefail`), and runs `e2e.mjs`.
+CI (`.github/workflows/ci.yml`): builds and tests the module (with the bundled SDK), builds the demo image from `demo/Dockerfile`, starts it with test accounts and the stand-in, checks that both accounts were created and that no password appears in the log (the log is captured into a variable first; never `docker logs … | grep -q` under `pipefail`), and runs `e2e.mjs`.
 
 Before a release, also check by hand (fresh demo, stand-in with `STAND_IN_PREFIX=1`): translate the sample page into all three languages from the page list and from the page editor (every text carries the marker, the quote's author and the link URL don't), translate German again without and with *Overwrite*, try *Also translate all subpages* with a subpage, and remove the key to see the *No Supertext API key* message.
 
@@ -143,7 +141,7 @@ The public demo is a container built from `demo/Dockerfile`: Magnolia 6.4.10 Com
 
 | File | Purpose |
 | --- | --- |
-| `demo/Dockerfile` | Builds the Supertext SDK (`tools/sdk/install-sdk.sh`, the one file of `tools/` in the build context, see `.dockerignore`) and the module (`mvn install`), then `demo/pom.xml` (war, with the module version passed as `supertext.version`), and runs the exploded `ROOT` webapp on `tomcat:11.0-jdk21-temurin` with a `RemoteIpValve` (Railway terminates TLS). |
+| `demo/Dockerfile` | Builds the module with the bundled SDK (`lib/`, `src/`; `mvn install`), then `demo/pom.xml` (war, with the module version passed as `supertext.version`), and runs the exploded `ROOT` webapp on `tomcat:11.0-jdk21-temurin` with a `RemoteIpValve` (Railway terminates TLS). |
 | `demo/pom.xml` | `magnolia-community-webapp` (war overlay + pom) with Magnolia's bundle BOM imported (without it, Maven picks older Magnolia jars and Magnolia refuses to start), plus this module. |
 | `demo/entrypoint.sh` | Creates the folders on `/data`, applies `PORT`, sets the heap (`MAGNOLIA_HEAP`, default 1536 MB), starts Tomcat. |
 | `demo/src/main/webapp/WEB-INF/config/default/magnolia.properties` | Replaces the empty webapp's: repository (H2 + Jackrabbit), keys, cache and logs on `/data`; `magnolia.update.auto=true` (no install wizard); no samples. |
@@ -169,7 +167,7 @@ Magnolia's own rules apply: the password must not be empty, and the user name (t
 
 Dependabot (`.github/dependabot.yml`) opens weekly pull requests: Maven minor and patch updates grouped into one, GitHub Actions in another, each major update on its own. Merge one when CI is green and it doesn't change what the module supports.
 
-Everything Magnolia provides at runtime is ignored on purpose and updated by hand: the Magnolia artifacts (`info.magnolia*`: `magnolia.version` and the other Magnolia properties are the oldest Magnolia the module supports, see `docs/INSTALLATION.md` → Requirements), and Vaadin (`provided` scope, so it must be the version that Magnolia release ships). When you raise `magnolia.version`, also raise it in `demo/pom.xml` and set Vaadin to what `mvn dependency:tree -Dverbose -Dincludes=com.vaadin` shows Magnolia bringing. The Supertext SDK is ignored too until it is on Maven Central (see *Supertext SDK*).
+Everything Magnolia provides at runtime is ignored on purpose and updated by hand: the Magnolia artifacts (`info.magnolia*`: `magnolia.version` and the other Magnolia properties are the oldest Magnolia the module supports, see `docs/INSTALLATION.md` → Requirements), and Vaadin (`provided` scope, so it must be the version that Magnolia release ships). When you raise `magnolia.version`, also raise it in `demo/pom.xml` and set Vaadin to what `mvn dependency:tree -Dverbose -Dincludes=com.vaadin` shows Magnolia bringing.
 
 ## Code quality and security checks
 
@@ -188,7 +186,7 @@ Releases are published by `.github/workflows/release.yml` when the version is of
 2. Set the same version in:
    - `pom.xml`: `<version>`, the module version (Magnolia reads it from `META-INF/magnolia/supertext-translation.xml`, filled in at build time; the Supertext app shows the jar's `Implementation-Version`);
    - `demo/pom.xml`: `<version>` and `<supertext.version>`.
-3. Push to `main`. The workflow checks that the version files match `CHANGELOG.md`, builds the SDK and the module with Maven, tags `vX.Y.Z` and creates the GitHub release with the CHANGELOG section as notes (0.x versions as pre-releases) and `magnolia-supertext-translation-X.Y.Z.jar` attached. A push that adds no new version does nothing, and a version that is already released is skipped. After fixing a failed run, start it again with *Run workflow* on the *Release* workflow.
+3. Push to `main`. The workflow checks that the version files match `CHANGELOG.md`, builds the module with Maven, tags `vX.Y.Z` and creates the GitHub release with the CHANGELOG section as notes (0.x versions as pre-releases) and `magnolia-supertext-translation-X.Y.Z.jar` attached. A push that adds no new version does nothing, and a version that is already released is skipped. After fixing a failed run, start it again with *Run workflow* on the *Release* workflow.
 
 The module is not on Maven Central; the installation guide explains how to install the release jar.
 

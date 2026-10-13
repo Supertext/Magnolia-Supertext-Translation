@@ -14,7 +14,7 @@ import jakarta.inject.Singleton;
 import com.supertext.magnolia.translation.api.SupertextConnection;
 import com.supertext.magnolia.translation.api.SupertextService;
 import com.supertext.magnolia.translation.ui.settings.SettingsStore;
-import com.supertext.sdk.LanguageCodes;
+import com.supertext.magnolia.translation.internal.sdk.LanguageCodes;
 
 /**
  * The settings in effect: the module configuration (edited in the Supertext app), with the API key and endpoint

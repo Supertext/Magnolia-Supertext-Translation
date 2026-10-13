@@ -29,7 +29,7 @@ mvn install:install-file -Dfile=magnolia-supertext-translation-0.1.0.jar \
 </dependency>
 ```
 
-(Or build it from this repository: `tools/sdk/install-sdk.sh` once, which builds the Supertext SDK, then `mvn install`, which puts the same artifact into your local Maven repository.)
+(Or build it from this repository: `mvn install` puts the same artifact, with the bundled Supertext SDK, into your local Maven repository.)
 
 **Existing installation without a build:** copy the jar into the webapp's `WEB-INF/lib` folder (author instance; public instances don't need it).
 

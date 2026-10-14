@@ -17,7 +17,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>17</maven.compiler.release>
-    <magnolia.version>6.4.10</magnolia.version>
+    <magnolia.version>6.4.11</magnolia.version>
     <!-- Must match the module version in ../pom.xml (the release workflow checks both). -->
     <supertext.version>0.1.0</supertext.version>
   </properties>
@@ -74,17 +74,17 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.14.0</version>
+        <version>3.16.0</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
-        <version>3.3.1</version>
+        <version>3.5.0</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-war-plugin</artifactId>
-        <version>3.4.0</version>
+        <version>3.5.1</version>
         <configuration>
           <!-- Our WEB-INF/config/default/magnolia.properties replaces the overlay's. -->
           <failOnMissingWebXml>false</failOnMissingWebXml>

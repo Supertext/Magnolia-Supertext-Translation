@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - The module now talks to Supertext through the [Supertext Java SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide), bundled in the module's jar: still one jar to install, no new libraries. Same protocol, retries and settings as before.
 - If Supertext's answer is missing some texts, that language now fails with *Supertext’s answer was incomplete* and nothing is saved for it, instead of saving the rest and reporting *… texts came back unusable*. A page is no longer left half translated.
+- The demo runs Magnolia 6.4.11 Community Edition (was 6.4.10); the module is tested with 6.4.11 too and still compiles against 6.4.10, the oldest version it supports.
 
 ### Fixed
 

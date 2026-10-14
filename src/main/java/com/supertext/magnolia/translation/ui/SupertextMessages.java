@@ -2,6 +2,7 @@ package com.supertext.magnolia.translation.ui;
 
 import com.supertext.magnolia.translation.api.SupertextException;
 import com.supertext.magnolia.translation.api.SupertextLinks;
+import com.supertext.magnolia.translation.internal.sdk.v1.ApiKeyCheck;
 
 /**
  * Supertext errors and the API key hint in the editor's interface language. Wraps Magnolia's
@@ -36,6 +37,35 @@ public final class SupertextMessages {
             return e.getMessage();
         }
         return e.detail().isEmpty() ? text : text + " (" + e.detail() + ")";
+    }
+
+    /** Prefix of the API key check's messages ({@code ok}, {@code invalid}, {@code missing}, {@code unreachable}, {@code error}). */
+    public static final String KEY_CHECK = "supertext-translation.keyCheck.";
+
+    /**
+     * The automatic API key check's result as HTML (the Commando Center's five messages): links to supertext.com
+     * open in a new tab; {@code error} names the HTTP status or Supertext's error code.
+     */
+    public String keyCheckHtml(ApiKeyCheck check) {
+        if (check == null) {
+            return "";
+        }
+        String status = check.getStatus().value();
+        String detail = check.getHttpStatus() != null ? "HTTP " + check.getHttpStatus() : check.getErrorCode() != null ? check.getErrorCode() : "?";
+        if (check.getErrorCode() != null && check.getHttpStatus() != null) {
+            detail += ", " + check.getErrorCode();
+        }
+        String text = i18n.translate(KEY_CHECK + status, SupertextLinks.SIGNUP_URL, SupertextLinks.API_KEY_URL, escape(detail));
+        return text == null || text.equals(KEY_CHECK + status) ? escape(status) : text;
+    }
+
+    /** Whether the key check's result is good news. */
+    public static boolean ok(ApiKeyCheck check) {
+        return check != null && check.getStatus() == ApiKeyCheck.Status.OK;
+    }
+
+    private static String escape(String text) {
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }
 
     /** "No Supertext account yet? …" as plain text with both URLs, for notifications. */

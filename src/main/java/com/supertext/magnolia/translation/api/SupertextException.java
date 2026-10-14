@@ -17,6 +17,7 @@ public class SupertextException extends Exception {
     private final String key;
     private final transient Object[] args;
     private final String detail;
+    private final Integer httpStatus;
 
     public SupertextException(String message) {
         this(message, false, null);
@@ -31,7 +32,13 @@ public class SupertextException extends Exception {
     }
 
     SupertextException(String key, Object[] args, String detail, String message, boolean authenticationProblem, Throwable cause) {
+        this(key, args, detail, message, authenticationProblem, null, cause);
+    }
+
+    SupertextException(String key, Object[] args, String detail, String message, boolean authenticationProblem, Integer httpStatus,
+                       Throwable cause) {
         super(message, cause);
+        this.httpStatus = httpStatus;
         this.key = key;
         this.args = args == null ? new Object[0] : args.clone();
         this.detail = detail == null ? "" : detail;
@@ -41,6 +48,19 @@ public class SupertextException extends Exception {
     /** True when the API key is missing or was rejected (the UI then shows where to get one). */
     public boolean isAuthenticationProblem() {
         return authenticationProblem;
+    }
+
+    /**
+     * True when Supertext itself rejected the key (HTTP 401/403), as opposed to no key being configured.
+     * The version reporter then marks the key invalid.
+     */
+    public boolean isKeyRejected() {
+        return authenticationProblem && httpStatus != null;
+    }
+
+    /** The HTTP status Supertext answered with, or null. */
+    public Integer httpStatus() {
+        return httpStatus;
     }
 
     /** Message key in the module's i18n bundle, or null when only the English message exists. */

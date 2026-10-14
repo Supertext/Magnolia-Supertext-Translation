@@ -24,8 +24,8 @@ import java.util.Properties;
 
 import org.junit.jupiter.api.Test;
 
-import com.supertext.magnolia.translation.internal.sdk.ErrorCode;
-import com.supertext.magnolia.translation.internal.sdk.Segment;
+import com.supertext.magnolia.translation.internal.sdk.v1.ErrorCode;
+import com.supertext.magnolia.translation.internal.sdk.v1.Segment;
 import com.supertext.magnolia.translation.internal.sdk.Transport;
 
 /** The adapter on the SDK, against a fake transport that behaves like Supertext. */
@@ -127,6 +127,7 @@ class SupertextServiceTest {
         assertEquals("supertext-translation.error.noApiKey", e.key());
         assertTrue(e.isAuthenticationProblem());
         assertTrue(e.getMessage().contains(SupertextLinks.API_KEY_URL));
+        assertFalse(e.isKeyRejected());
         assertEquals(List.of(), requests);
     }
 
@@ -139,6 +140,8 @@ class SupertextServiceTest {
         assertTrue(e.isAuthenticationProblem());
         assertTrue(e.getMessage().contains(SupertextLinks.SIGNUP_URL) && e.getMessage().contains(SupertextLinks.API_KEY_URL));
         assertFalse(e.getMessage().contains("secret-key"));
+        assertTrue(e.isKeyRejected(), "rejected by Supertext, not missing");
+        assertEquals(401, e.httpStatus());
     }
 
     @Test
@@ -162,10 +165,40 @@ class SupertextServiceTest {
     }
 
     @Test
-    void localeVariantsAreDropped() throws Exception {
-        service.translateTexts(CONNECTION, texts(), "de_DE_formal", "en", "default");
+    void politenessIsOnlySentWhereTheTargetOffersIt() throws Exception {
+        service.translateTexts(CONNECTION, texts(), "en-US", "de", "more");
         String form = body(requests.get(0));
-        assertTrue(form.contains("name=\"target_lang\"\r\n\r\nde-DE\r\n"), form);
+        assertTrue(form.contains("name=\"target_lang\"\r\n\r\nen-US\r\n"), form);
+        assertFalse(form.contains("politeness"), "English has no formal/informal: " + form);
+        requests.clear();
+        service.translateTexts(CONNECTION, texts(), "xx-new", "en", "less");
+        assertFalse(body(requests.get(0)).contains("politeness"), "unknown code: not sent");
+    }
+
+    @Test
+    void unsupportedFeatureNamesTheOption() {
+        uploadAnswers.add(json(400, "{\"error_code\":\"FEATURE_ERROR\",\"feature\":\"politeness\",\"target_lang\":\"de-CH\"}"));
+        SupertextException e = assertThrows(SupertextException.class,
+                () -> service.translateTexts(CONNECTION, texts(), "de-CH", "en", "more"));
+        assertEquals("supertext-translation.error.unsupportedFeature", e.key());
+        assertEquals("politeness", e.args()[0]);
+        assertFalse(e.isAuthenticationProblem());
+    }
+
+    @Test
+    void languagesAreResolvedWithoutGuessing() throws Exception {
+        Map<String, String> mapping = Map.of("de", "de-CH", "no", "nb");
+        assertEquals("de-CH", SupertextService.targetCode("de", mapping));
+        assertEquals("nb", SupertextService.targetCode("no", mapping));
+        assertEquals("fr-CH", SupertextService.targetCode("fr_CH", mapping));
+        assertEquals("de", SupertextService.sourceCode("de", mapping));
+        assertEquals("", SupertextService.sourceCode("", mapping), "auto-detect");
+        SupertextException e = assertThrows(SupertextException.class, () -> SupertextService.targetCode("pt", mapping));
+        assertEquals("supertext-translation.error.unsupportedLanguage", e.key());
+        assertArrayEquals(new Object[] {"pt"}, e.args());
+        assertFalse(e.isAuthenticationProblem());
+        assertTrue(e.getMessage().contains("Language codes"), e.getMessage());
+        assertEquals("xx", assertThrows(SupertextException.class, () -> SupertextService.sourceCode("xx", mapping)).args()[0]);
     }
 
     @Test
@@ -243,7 +276,7 @@ class SupertextServiceTest {
             en.load(new InputStreamReader(in, StandardCharsets.UTF_8));
         }
         for (ErrorCode code : ErrorCode.values()) {
-            SupertextException e = SupertextService.convert(new com.supertext.magnolia.translation.internal.sdk.SupertextException(code, "English"), "en", "de-DE");
+            SupertextException e = SupertextService.convert(new com.supertext.magnolia.translation.internal.sdk.v1.SupertextException(code), "en", "de-DE");
             assertTrue(en.containsKey(e.key()), code + " → " + e.key());
             assertEquals(code == ErrorCode.MISSING_API_KEY || code == ErrorCode.AUTHENTICATION_FAILURE, e.isAuthenticationProblem(), code.value());
             assertFalse(e.key().endsWith(".http") && code != ErrorCode.UNEXPECTED_STATUS, code + " has its own message");

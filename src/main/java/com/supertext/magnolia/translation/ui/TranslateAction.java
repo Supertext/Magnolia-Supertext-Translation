@@ -36,6 +36,7 @@ import com.supertext.magnolia.translation.api.SupertextException;
 import com.supertext.magnolia.translation.content.DialogFieldResolver;
 import com.supertext.magnolia.translation.content.PageTranslator;
 import com.supertext.magnolia.translation.content.SiteLanguages;
+import com.supertext.magnolia.translation.reporting.ReportingService;
 import com.vaadin.data.BinderValidationStatus;
 import com.vaadin.ui.Notification;
 
@@ -64,12 +65,13 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
     private final DialogDefinitionRegistry dialogs;
     private final SimpleTranslator i18n;
     private final SupertextMessages messages;
+    private final ReportingService reporting;
 
     @Inject
     public TranslateAction(TranslateActionDefinition definition, ValueContext<Node> valueContext, EditorView<Node> form, CloseHandler closeHandler,
                            DatasourceObservation.Manual<Node> datasourceObservation, SupertextSettings settings, SupertextService supertext,
                            SiteManager siteManager, I18nContentSupport i18nContentSupport, TemplateDefinitionRegistry templates,
-                           DialogDefinitionRegistry dialogs, SimpleTranslator i18n) {
+                           DialogDefinitionRegistry dialogs, SimpleTranslator i18n, ReportingService reporting) {
         super(definition);
         this.valueContext = valueContext;
         this.form = form;
@@ -83,6 +85,7 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
         this.dialogs = dialogs;
         this.i18n = i18n;
         this.messages = new SupertextMessages(i18n::translate);
+        this.reporting = reporting;
     }
 
     @Override
@@ -95,6 +98,8 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
         if (page == null) {
             return;
         }
+        // Commando Center: re-checks a changed key, reports an upgrade (in the background, never blocks).
+        reporting.onRequest();
         SiteLanguages languages = SiteLanguagesLookup.of(page, siteManager, i18nContentSupport);
         if (!languages.isEnabled()) {
             error(t("supertext-translation.translate.noLanguages"), null);
@@ -128,6 +133,9 @@ public class TranslateAction extends AbstractAction<TranslateActionDefinition> {
         } catch (SupertextException e) {
             // Missing or rejected key: nothing was saved, keep the dialog open.
             log.warn("Supertext: {}", e.getMessage());
+            if (e.isKeyRejected()) {
+                reporting.authenticationFailed(e.httpStatus());
+            }
             error(messages.of(e), e.isAuthenticationProblem() ? messages.hint() : null);
             return;
         } catch (InterruptedException e) {

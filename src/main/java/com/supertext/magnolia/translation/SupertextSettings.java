@@ -3,7 +3,6 @@ package com.supertext.magnolia.translation;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -14,7 +13,9 @@ import jakarta.inject.Singleton;
 import com.supertext.magnolia.translation.api.SupertextConnection;
 import com.supertext.magnolia.translation.api.SupertextService;
 import com.supertext.magnolia.translation.ui.settings.SettingsStore;
-import com.supertext.magnolia.translation.internal.sdk.LanguageCodes;
+import com.supertext.magnolia.translation.api.LanguageMapping;
+import com.supertext.magnolia.translation.api.SupertextException;
+import com.supertext.magnolia.translation.internal.sdk.v1.Reporting;
 
 /**
  * The settings in effect: the module configuration (edited in the Supertext app), with the API key and endpoint
@@ -77,34 +78,36 @@ public class SupertextSettings {
     }
 
     /**
-     * The target code sent to Supertext for a Magnolia locale: the language mapping if it has an
-     * entry (matched on {@code de_CH}, {@code de-CH} or {@code de}), else the BCP-47 tag, always
-     * with a region ({@code de} → {@code de-DE}; the SDK's {@link LanguageCodes}).
+     * The target code sent to Supertext for a Magnolia locale: the <em>Language codes</em> entry, else an exact
+     * match ({@code de_CH} → {@code de-CH}), else {@code unsupportedLanguage} (nothing is sent; no default regions).
      */
-    public String targetLanguageCode(Locale locale) {
-        return LanguageCodes.target(codeFor(locale));
+    public String targetLanguageCode(Locale locale) throws SupertextException {
+        return languageMapping().target(locale.toString());
     }
 
-    /** The source code sent to Supertext: the bare language of the mapping entry or locale ({@code en_GB} → {@code en}). */
-    public String sourceLanguageCode(Locale locale) {
-        return LanguageCodes.source(codeFor(locale));
+    /** The source code sent to Supertext: the entry in its source form ({@code de=de-CH} → {@code de}), else the bare language. */
+    public String sourceLanguageCode(Locale locale) throws SupertextException {
+        return languageMapping().source(locale.toString());
     }
 
-    /** The mapping entry for the locale, else its BCP-47 tag. */
-    private String codeFor(Locale locale) {
-        String mapped = mappedCode(locale);
-        return mapped != null ? mapped : locale.toLanguageTag();
+    public LanguageMapping languageMapping() {
+        return LanguageMapping.parse(module().getLanguageMapping());
     }
 
-    private String mappedCode(Locale locale) {
-        Map<String, String> mapping = parseMapping(module().getLanguageMapping());
-        for (String key : new String[] {locale.toString(), locale.toLanguageTag(), locale.getLanguage()}) {
-            String code = mapping.get(key.toLowerCase(Locale.ROOT));
-            if (code != null && !code.isEmpty()) {
-                return code;
-            }
-        }
-        return null;
+    /** The "Send version information to Supertext" setting ({@code null} = not set = on); see {@link #versionReportsEnabled()}. */
+    public Boolean versionReportsSetting() {
+        return module().getVersionReports();
+    }
+
+    /** Whether version reports are on: {@code SUPERTEXT_VERSION_REPORTS} wins over the setting, which is on by default. */
+    public boolean versionReportsEnabled() {
+        return Reporting.reportsEnabled(versionReportsSetting(), environment.apply(Reporting.ENV_VERSION_REPORTS));
+    }
+
+    /** Whether {@code SUPERTEXT_VERSION_REPORTS} decides on its own (then the setting is shown read-only). */
+    public boolean versionReportsFromEnvironment() {
+        String env = environment.apply(Reporting.ENV_VERSION_REPORTS);
+        return Reporting.reportsEnabled(true, env) == Reporting.reportsEnabled(false, env);
     }
 
     public Set<String> excludedProperties() {
@@ -113,17 +116,6 @@ public class SupertextSettings {
 
     public Set<String> additionalProperties() {
         return split(module().getAdditionalProperties());
-    }
-
-    static Map<String, String> parseMapping(String value) {
-        Map<String, String> mapping = new java.util.HashMap<>();
-        for (String line : (value == null ? "" : value).split("[\\n,;]")) {
-            String[] pair = line.split("=", 2);
-            if (pair.length == 2 && !pair[0].isBlank() && !pair[1].isBlank()) {
-                mapping.put(pair[0].trim().toLowerCase(Locale.ROOT), pair[1].trim());
-            }
-        }
-        return mapping;
     }
 
     static Set<String> split(String value) {

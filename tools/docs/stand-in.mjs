@@ -7,7 +7,9 @@
  * with "[<target_lang>] " when STAND_IN_PREFIX=1, which makes untranslated text
  * easy to spot in tests. STAND_IN_DUMP=<dir> writes each submitted document's
  * untranslated segments to <dir>/<target_lang>.json (to extend the samples).
- * Listens on :8765 (PORT), accepts any API key.
+ * Listens on :8765 (PORT), accepts any API key. Like the live API it accepts only the language codes
+ * of GET features (targets regional only for de/en/fr/it/pt, bare for most others) and answers
+ * POST /report like the Commando Center (point SUPERTEXT_REPORT_URL at it in tests).
  */
 import http from 'node:http';
 import { randomBytes } from 'node:crypto';
@@ -25,6 +27,11 @@ const sampleFor = (lang) => {
   return samples.get(primary);
 };
 const files = new Map();
+// The live API's languages (GET features, October 2026; the SDK's spec/languages.json).
+const TARGETS = new Set('bg cs da de-AT de-CH de-DE el en-GB en-US es fi fr-CH fr-FR gsw-u-sd-chbe gsw-u-sd-chzh hr hu it-CH it-IT ja ko nb nl pl pt-BR pt-PT rm ru sk sl sq sr-Cyrl sr-Latn sv tr zh-Hans zh-Hant'.split(' '));
+const SOURCES = new Set([...TARGETS].map((t) => t.split('-')[0]));
+const NO_POLITENESS = /^(en|gsw|rm|sq|sr)(-|$)/;
+const reports = [];
 const prefix = process.env.STAND_IN_PREFIX === '1';
 
 http
@@ -34,6 +41,19 @@ http
       res.writeHead(status, { 'Content-Type': type });
       res.end(type === 'application/json' ? JSON.stringify(body) : body);
     };
+    if (req.method === 'POST' && path === '/report') {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      try {
+        const report = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        reports.push(report);
+        console.log(`REPORT ${report.event} ${report.site_url} ${report.plugin?.name} ${report.plugin?.version} key=${report.api_key_check?.status ?? '-'}`);
+        return send(202, { ok: true });
+      } catch {
+        return send(400, { ok: false, error: 'not JSON' });
+      }
+    }
+    if (req.method === 'GET' && path === '/reports') return send(200, reports);
     if (!/^Supertext-Auth-Key \S+$/.test(req.headers.authorization || '')) return send(401, { error: 'missing key' });
     if (path === '/features') return send(200, {});
     if (req.method === 'POST' && path === '/translate/ai/file') {
@@ -46,12 +66,16 @@ http
         console.log('POST with unreadable multipart body:', e.message);
         return send(400, { error: 'INVALID_MULTIPART' });
       }
-      // Like the live API: the target needs a region (de-DE), the source must be bare (en).
+      // Like the live API: only the codes of GET features (de-CH, es; not de or es-ES), sources bare (en).
       const target = String(form.get('target_lang') ?? '');
       const source = form.get('source_lang');
-      if (!/^[a-z]{2,3}-[A-Za-z0-9]{2,8}$/.test(target) || (source !== null && !/^[a-z]{2,3}$/.test(String(source)))) {
+      if (!TARGETS.has(target) || (source !== null && !SOURCES.has(String(source)))) {
         console.log(`POST rejected: INVALID_LANGUAGE_PAIR source_lang=${source} target_lang=${target}`);
-        return send(400, { detail: { code: 'INVALID_LANGUAGE_PAIR', message: `Invalid language pair ${source ?? 'auto'} -> ${target}` } });
+        return send(404, { error_code: 'INVALID_LANGUAGE_PAIR', source_lang: source ?? '', target_lang: target, detail: `Invalid language pair ${source ?? 'auto'} -> ${target}` });
+      }
+      if (form.get('politeness') !== null && NO_POLITENESS.test(target)) {
+        console.log(`POST rejected: FEATURE_ERROR politeness for ${target}`);
+        return send(400, { error_code: 'FEATURE_ERROR', feature: 'politeness', target_lang: target });
       }
       const id = randomBytes(6).toString('hex');
       files.set(id, { html: await form.get('file').text(), lang: String(form.get('target_lang') || '') });

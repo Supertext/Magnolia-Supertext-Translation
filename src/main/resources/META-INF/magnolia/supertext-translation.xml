@@ -5,6 +5,7 @@
   <displayName>Supertext Translation</displayName>
   <description>Translates pages with Supertext AI: "Translate with Supertext" in the Pages app, settings in Translation → Supertext.</description>
   <class>com.supertext.magnolia.translation.SupertextTranslationModule</class>
+  <versionHandler>com.supertext.magnolia.translation.setup.SupertextVersionHandler</versionHandler>
   <version>${project.version}</version>
 
   <components>
@@ -17,6 +18,12 @@
     <component>
       <type>com.supertext.magnolia.translation.api.SupertextService</type>
       <implementation>com.supertext.magnolia.translation.api.SupertextService</implementation>
+      <scope>singleton</scope>
+    </component>
+    <!-- Commando Center: version reports, API key check, ping (/.supertext/ping, set up by RegisterPingTask). -->
+    <component>
+      <type>com.supertext.magnolia.translation.reporting.ReportingService</type>
+      <implementation>com.supertext.magnolia.translation.reporting.ReportingService</implementation>
       <scope>singleton</scope>
     </component>
   </components>

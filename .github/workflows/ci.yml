@@ -62,6 +62,7 @@ jobs:
             -e DEMO_ADMIN_EMAIL=admin@ci.example -e DEMO_ADMIN_PASSWORD="$admin_pw" \
             -e DEMO_EDITOR_EMAIL=editor@ci.example -e DEMO_EDITOR_PASSWORD="$editor_pw" \
             -e SUPERTEXT_API_KEY=ci -e SUPERTEXT_API_ENDPOINT=http://host.docker.internal:8765/v1/ \
+            -e SUPERTEXT_REPORT_URL=http://host.docker.internal:8765/report \
             supertext-magnolia-demo
           for _ in $(seq 1 60); do
             logs=$(docker logs demo 2>&1)
@@ -93,6 +94,27 @@ jobs:
         run: |
           cd tools/docs && npx playwright install --with-deps chromium
           DEMO_URL=http://localhost:8080 DEMO_EDITOR_EMAIL=editor@ci.example DEMO_EDITOR_PASSWORD="$EDITOR_PW" node e2e.mjs
+      - name: Ping and version report
+        run: |
+          set -euo pipefail
+          # The public ping answers without a login and isn't cached.
+          headers=$(mktemp)
+          body=$(curl -sS -D "$headers" 'http://localhost:8080/.supertext/ping?challenge=ci-challenge-0123456789')
+          echo "$body"
+          grep -qF '"challenge":"ci-challenge-0123456789"' <<< "$body"
+          grep -qF '"plugin":"Magnolia-Supertext-Translation"' <<< "$body"
+          grep -qi '^cache-control: no-store' "$headers"
+          code=$(curl -s -o /dev/null -w '%{http_code}' 'http://localhost:8080/.supertext/ping?challenge=bad')
+          [ "$code" = "400" ]
+          # The translation above reported the installation to the stand-in (in the background).
+          for _ in $(seq 1 12); do
+            reports=$(curl -sS http://localhost:8765/reports)
+            if grep -qF 'Magnolia-Supertext-Translation' <<< "$reports"; then break; fi
+            sleep 5
+          done
+          echo "$reports"
+          grep -qF '"callback":{"url":"' <<< "$reports"
+          if grep -qF '"ci"' <<< "$reports"; then echo "::error::The API key appears in a report"; exit 1; fi
       - name: Logs on failure
         if: failure()
         run: |

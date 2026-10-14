@@ -35,6 +35,7 @@ public class SettingsStore {
     public static final String LANGUAGE_MAPPING = "languageMapping";
     public static final String EXCLUDED = "excludedProperties";
     public static final String ADDITIONAL = "additionalProperties";
+    public static final String VERSION_REPORTS = "versionReports";
 
     /** The stored settings, read with system rights (editors can't read the config workspace). */
     public static SupertextTranslationModule loadModule() {
@@ -57,10 +58,17 @@ public class SettingsStore {
             module.setLanguageMapping(values.getOrDefault(LANGUAGE_MAPPING, ""));
             module.setExcludedProperties(values.getOrDefault(EXCLUDED, ""));
             module.setAdditionalProperties(values.getOrDefault(ADDITIONAL, ""));
+            module.setVersionReports(parseBoolean(values.getOrDefault(VERSION_REPORTS, "")));
         } catch (RuntimeException e) {
             log.warn("Supertext: could not read {}: {}", CONFIG_PATH, e.getMessage());
         }
         return module;
+    }
+
+    /** {@code true}/{@code false}; anything else (not set) is null, which means on. */
+    static Boolean parseBoolean(String value) {
+        String v = value == null ? "" : value.trim();
+        return v.equalsIgnoreCase("true") ? Boolean.TRUE : v.equalsIgnoreCase("false") ? Boolean.FALSE : null;
     }
 
     public Map<String, String> read() throws RepositoryException {
@@ -68,7 +76,7 @@ public class SettingsStore {
         Session session = MgnlContext.getJCRSession(RepositoryConstants.CONFIG);
         if (session.nodeExists(CONFIG_PATH)) {
             Node node = session.getNode(CONFIG_PATH);
-            for (String name : new String[] {API_KEY, ENDPOINT, POLITENESS, POLL_TIMEOUT, LANGUAGE_MAPPING, EXCLUDED, ADDITIONAL}) {
+            for (String name : new String[] {API_KEY, ENDPOINT, POLITENESS, POLL_TIMEOUT, LANGUAGE_MAPPING, EXCLUDED, ADDITIONAL, VERSION_REPORTS}) {
                 values.put(name, node.hasProperty(name) ? node.getProperty(name).getString() : "");
             }
         }
@@ -85,6 +93,8 @@ public class SettingsStore {
             }
             if (POLL_TIMEOUT.equals(entry.getKey())) {
                 node.setProperty(entry.getKey(), Long.parseLong(entry.getValue()));
+            } else if (VERSION_REPORTS.equals(entry.getKey())) {
+                node.setProperty(entry.getKey(), Boolean.parseBoolean(entry.getValue()));
             } else {
                 node.setProperty(entry.getKey(), entry.getValue());
             }

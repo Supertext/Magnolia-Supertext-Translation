@@ -1,8 +1,12 @@
 package com.supertext.magnolia.translation.ui.settings;
 
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import javax.jcr.RepositoryException;
 
@@ -11,17 +15,25 @@ import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import info.magnolia.cms.i18n.I18nContentSupport;
 import info.magnolia.i18nsystem.SimpleTranslator;
+import info.magnolia.module.site.Site;
+import info.magnolia.module.site.SiteManager;
 import info.magnolia.ui.api.view.View;
 
 import com.supertext.magnolia.translation.SupertextSettings;
+import com.supertext.magnolia.translation.api.LanguageMapping;
 import com.supertext.magnolia.translation.api.SupertextService;
-import com.supertext.magnolia.translation.api.SupertextConnection;
 import com.supertext.magnolia.translation.api.SupertextException;
+import com.supertext.magnolia.translation.internal.sdk.v1.ApiKeyCheck;
+import com.supertext.magnolia.translation.internal.sdk.v1.ReporterResult;
+import com.supertext.magnolia.translation.reporting.ReportingService;
+import com.supertext.magnolia.translation.ui.SiteLanguagesLookup;
 import com.supertext.magnolia.translation.ui.SupertextMessages;
 import com.vaadin.server.Sizeable;
 import com.vaadin.shared.ui.ContentMode;
 import com.vaadin.ui.Button;
+import com.vaadin.ui.CheckBox;
 import com.vaadin.ui.Component;
 import com.vaadin.ui.CssLayout;
 import com.vaadin.ui.FormLayout;
@@ -37,7 +49,8 @@ import com.vaadin.ui.VerticalLayout;
 
 /**
  * Translation → Supertext: API key (with a connection check), endpoint, form of address, language
- * code mapping, excluded and additional properties, timeout. Shows the installed version and
+ * code mapping (with the site languages and how each is sent), excluded and additional properties,
+ * timeout, version reports. Shows the installed version, the latest automatic API key check and
  * where to get a Supertext account and API key.
  */
 public class SupertextSettingsView implements View {
@@ -51,6 +64,9 @@ public class SupertextSettingsView implements View {
     private final transient SimpleTranslator i18n;
     private final transient SupertextMessages messages;
     private final transient SettingsStore store;
+    private final transient ReportingService reporting;
+    private final transient SiteManager siteManager;
+    private final transient I18nContentSupport i18nContentSupport;
 
     private final Panel root = new Panel();
     private final PasswordField apiKey = new PasswordField();
@@ -60,18 +76,27 @@ public class SupertextSettingsView implements View {
     private final TextArea languageMapping = new TextArea();
     private final TextArea excluded = new TextArea();
     private final TextArea additional = new TextArea();
+    private final CheckBox versionReports = new CheckBox();
+    private final Label languages = new Label("", ContentMode.HTML);
     private final Label status = new Label("", ContentMode.HTML);
     private boolean keyStored;
 
     @Inject
-    public SupertextSettingsView(SupertextSettings settings, SupertextService supertext, SimpleTranslator i18n) {
+    public SupertextSettingsView(SupertextSettings settings, SupertextService supertext, SimpleTranslator i18n, ReportingService reporting,
+                                 SiteManager siteManager, I18nContentSupport i18nContentSupport) {
         this.settings = settings;
         this.supertext = supertext;
         this.i18n = i18n;
         this.messages = new SupertextMessages(i18n::translate);
         this.store = new SettingsStore();
+        this.reporting = reporting;
+        this.siteManager = siteManager;
+        this.i18nContentSupport = i18nContentSupport;
         build();
         load();
+        showCheck(reporting.lastCheck());
+        // A back-end request that runs the module's code: re-checks a changed key, reports an upgrade (in the background).
+        reporting.onRequest();
     }
 
     @Override
@@ -116,6 +141,7 @@ public class SupertextSettingsView implements View {
         politeness.setItems(List.of("default", "more", "less"));
         politeness.setItemCaptionGenerator(value -> t("supertext-translation.settings.politeness." + value));
         form.addComponent(politeness);
+        form.addComponent(help(escape(t("supertext-translation.settings.politeness.help"))));
 
         languageMapping.setCaption(t("supertext-translation.settings.languageMapping"));
         languageMapping.setRows(3);
@@ -123,6 +149,8 @@ public class SupertextSettingsView implements View {
         languageMapping.setWidth(100, Sizeable.Unit.PERCENTAGE);
         form.addComponent(languageMapping);
         form.addComponent(help(t("supertext-translation.settings.languageMapping.help")));
+        languages.setWidth(100, Sizeable.Unit.PERCENTAGE);
+        form.addComponent(languages);
 
         excluded.setCaption(t("supertext-translation.settings.excluded"));
         excluded.setRows(2);
@@ -138,6 +166,20 @@ public class SupertextSettingsView implements View {
         timeout.setCaption(t("supertext-translation.settings.timeout"));
         timeout.setWidth(120, Sizeable.Unit.PIXELS);
         form.addComponent(timeout);
+
+        versionReports.setCaption(t("supertext-translation.settings.versionReports"));
+        form.addComponent(versionReports);
+        form.addComponent(help(escape(t("supertext-translation.settings.versionReports.help"))));
+        if (settings.versionReportsFromEnvironment()) {
+            versionReports.setEnabled(false);
+            form.addComponent(help(escape(t("supertext-translation.settings.versionReports.fromEnvironment", "SUPERTEXT_VERSION_REPORTS"))));
+        }
+        String ping = reporting.pingUrl();
+        if (ping != null && settings.versionReportsEnabled()) {
+            Label pingLabel = help(escape(t("supertext-translation.settings.versionReports.ping", ping)));
+            pingLabel.addStyleName("supertext-ping");
+            form.addComponent(pingLabel);
+        }
 
         Button save = new Button(t("supertext-translation.settings.save"), e -> save());
         save.addStyleName("commit");
@@ -155,6 +197,8 @@ public class SupertextSettingsView implements View {
         if (page != null) {
             page.getStyles().add(".supertext-settings { padding: 16px 32px 48px !important; }"
                     + " .supertext-settings h2 { font-weight: 400; }"
+                    + " .supertext-languages { border-collapse: collapse; margin: 4px 0 8px; }"
+                    + " .supertext-languages th, .supertext-languages td { text-align: left; padding: 3px 12px 3px 0; border-bottom: 1px solid #ddd; vertical-align: top; }"
                     + " .supertext-settings input, .supertext-settings input::placeholder, .supertext-settings textarea::placeholder { font-family: inherit; }");
         }
         root.setSizeFull();
@@ -175,6 +219,9 @@ public class SupertextSettingsView implements View {
             languageMapping.setValue(values.getOrDefault(SettingsStore.LANGUAGE_MAPPING, ""));
             excluded.setValue(values.getOrDefault(SettingsStore.EXCLUDED, ""));
             additional.setValue(values.getOrDefault(SettingsStore.ADDITIONAL, ""));
+            versionReports.setValue(settings.versionReportsFromEnvironment() ? settings.versionReportsEnabled()
+                    : !Boolean.FALSE.equals(parseBoolean(values.getOrDefault(SettingsStore.VERSION_REPORTS, ""))));
+            languages.setValue(languageTable(LanguageMapping.parse(languageMapping.getValue())));
         } catch (RepositoryException e) {
             log.warn("Supertext: could not read the settings", e);
             status.setValue(escape(t("supertext-translation.settings.readFailed")));
@@ -210,6 +257,7 @@ public class SupertextSettingsView implements View {
         values.put(SettingsStore.LANGUAGE_MAPPING, languageMapping.getValue());
         values.put(SettingsStore.EXCLUDED, excluded.getValue());
         values.put(SettingsStore.ADDITIONAL, additional.getValue());
+        values.put(SettingsStore.VERSION_REPORTS, settings.versionReportsFromEnvironment() ? null : String.valueOf(Boolean.TRUE.equals(versionReports.getValue())));
         try {
             store.write(values);
             load();
@@ -217,26 +265,117 @@ public class SupertextSettingsView implements View {
         } catch (RepositoryException | RuntimeException e) {
             log.warn("Supertext: could not save the settings", e);
             Notification.show(t("supertext-translation.settings.saveFailed"), e.getMessage(), Notification.Type.ERROR_MESSAGE);
+            return;
         }
+        // The automatic API key check, and the version report if it is on. Never blocks or undoes the save.
+        ReporterResult result = reporting.afterSettingsSaved();
+        showCheck(result == null ? null : result.getCheck());
     }
 
-    /** Checks the key typed in the field, or the one in effect when the field is empty. */
+    /** Checks the saved key (or the one from the environment) and shows the result; reports a change. */
     private void check() {
-        SupertextConnection current = settings.connection();
         String typed = SupertextService.normalizeApiKey(apiKey.getValue());
-        String typedEndpoint = endpoint.getValue().trim();
-        SupertextConnection connection = new SupertextConnection(
-                settings.endpointFromEnvironment().isEmpty() && !typedEndpoint.isEmpty() ? typedEndpoint : current.endpoint(),
-                typed.isEmpty() || !settings.apiKeyFromEnvironment().isEmpty() ? current.apiKey() : typed);
-        try {
-            supertext.validateApiKey(connection);
-            status.setValue("<span style=\"color:#2e7d32\">✓ " + escape(t("supertext-translation.settings.checkOk", connection.endpoint())) + "</span>");
-        } catch (SupertextException e) {
-            String hint = e.isAuthenticationProblem() ? "<br>" + messages.htmlHint() : "";
-            status.setValue("<span style=\"color:#c62828\">✗ " + escape(messages.of(e)) + "</span>" + hint);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        if (!typed.isEmpty() && settings.apiKeyFromEnvironment().isEmpty()) {
+            Notification.show(t("supertext-translation.settings.checkSaveFirst"), Notification.Type.WARNING_MESSAGE);
+            return;
         }
+        ReporterResult result = reporting.testConnection();
+        showCheck(result == null ? null : result.getCheck());
+    }
+
+    private void showCheck(ApiKeyCheck check) {
+        if (check == null) {
+            status.setValue("");
+            return;
+        }
+        String color = SupertextMessages.ok(check) ? "#2e7d32" : "#c62828";
+        String mark = SupertextMessages.ok(check) ? "✓ " : "✗ ";
+        status.setValue("<span style=\"color:" + color + "\">" + mark + messages.keyCheckHtml(check) + "</span>"
+                + "<div class=\"description\">" + escape(t("supertext-translation.keyCheck.checkedAt", check.getCheckedAt())) + "</div>");
+    }
+
+    /** The site languages and how each is sent to Supertext (or that it needs a line in "Language codes"). */
+    String languageTable(LanguageMapping mapping) {
+        Set<String> sources = new LinkedHashSet<>();
+        Set<String> targets = new LinkedHashSet<>();
+        Set<String> all = new LinkedHashSet<>();
+        for (I18nContentSupport i18nSupport : siteLanguageConfigurations()) {
+            if (i18nSupport == null || !i18nSupport.isEnabled()) {
+                continue;
+            }
+            Locale main = i18nSupport.getDefaultLocale();
+            if (main != null) {
+                sources.add(main.toString());
+                all.add(main.toString());
+            }
+            Collection<Locale> locales = i18nSupport.getLocales();
+            if (locales != null) {
+                for (Locale l : locales) {
+                    all.add(l.toString());
+                    if (!l.equals(main)) {
+                        targets.add(l.toString());
+                    }
+                }
+            }
+        }
+        if (all.isEmpty()) {
+            return "<div class=\"description\">" + escape(t("supertext-translation.settings.languages.none")) + "</div>";
+        }
+        StringBuilder html = new StringBuilder("<table class=\"supertext-languages\"><tr>")
+                .append("<th>").append(escape(t("supertext-translation.settings.languages.language"))).append("</th>")
+                .append("<th>").append(escape(t("supertext-translation.settings.languages.code"))).append("</th>")
+                .append("<th>").append(escape(t("supertext-translation.settings.languages.politeness"))).append("</th></tr>");
+        for (String language : all) {
+            LanguageMapping.Status target = mapping.status(language, false);
+            boolean isTarget = targets.contains(language);
+            String code;
+            if (!isTarget) {
+                code = "";
+            } else if (target.supported()) {
+                code = "<code>" + escape(target.code()) + "</code> · " + escape(t(target.mapped()
+                        ? "supertext-translation.settings.languages.mapped" : "supertext-translation.settings.languages.exact"));
+            } else {
+                code = "<span style=\"color:#c62828\">✗ " + escape(t("supertext-translation.settings.languages.unsupported", language)) + "</span>";
+            }
+            if (sources.contains(language)) {
+                LanguageMapping.Status source = mapping.status(language, true);
+                code += (code.isEmpty() ? "" : "<br>") + (source.supported()
+                        ? escape(t("supertext-translation.settings.languages.source", source.code()))
+                        : "<span style=\"color:#c62828\">✗ " + escape(t("supertext-translation.settings.languages.sourceUnsupported", language)) + "</span>");
+            }
+            String politeness = !isTarget ? "–" : Boolean.TRUE.equals(target.politeness()) ? t("supertext-translation.settings.languages.yes")
+                    : target.supported() ? t("supertext-translation.settings.languages.no") : "–";
+            html.append("<tr><td>").append(escape(SiteLanguagesLookup.displayName(Locale.forLanguageTag(language.replace('_', '-')))))
+                    .append(" <code>").append(escape(language)).append("</code></td><td>").append(code)
+                    .append("</td><td>").append(escape(politeness)).append("</td></tr>");
+        }
+        return html.append("</table>").toString();
+    }
+
+    /** Every site's i18n configuration, or Magnolia's global one when there are no sites. */
+    private List<I18nContentSupport> siteLanguageConfigurations() {
+        List<I18nContentSupport> result = new java.util.ArrayList<>();
+        try {
+            Collection<Site> sites = siteManager.getSites();
+            if (sites != null) {
+                for (Site site : sites) {
+                    if (site != null && site.getI18n() != null) {
+                        result.add(site.getI18n());
+                    }
+                }
+            }
+        } catch (RuntimeException e) {
+            log.debug("Supertext: could not read the sites: {}", e.toString());
+        }
+        if (result.isEmpty() && i18nContentSupport != null) {
+            result.add(i18nContentSupport);
+        }
+        return result;
+    }
+
+    private static Boolean parseBoolean(String value) {
+        String v = value == null ? "" : value.trim();
+        return v.equalsIgnoreCase("true") ? Boolean.TRUE : v.equalsIgnoreCase("false") ? Boolean.FALSE : null;
     }
 
     private String t(String key, Object... args) {

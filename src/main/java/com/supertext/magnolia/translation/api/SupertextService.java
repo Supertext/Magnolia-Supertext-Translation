@@ -6,14 +6,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import com.supertext.magnolia.translation.internal.sdk.ErrorCode;
-import com.supertext.magnolia.translation.internal.sdk.Politeness;
-import com.supertext.magnolia.translation.internal.sdk.Segment;
-import com.supertext.magnolia.translation.internal.sdk.SupertextClient;
 import com.supertext.magnolia.translation.internal.sdk.Transport;
+import com.supertext.magnolia.translation.internal.sdk.v1.ErrorCode;
+import com.supertext.magnolia.translation.internal.sdk.v1.Languages;
+import com.supertext.magnolia.translation.internal.sdk.v1.Politeness;
+import com.supertext.magnolia.translation.internal.sdk.v1.Segment;
+import com.supertext.magnolia.translation.internal.sdk.v1.SupertextClient;
 
 /**
- * The module's access to Supertext, on top of the Supertext Java SDK ({@code com.supertext.magnolia.translation.internal.sdk},
+ * The module's access to Supertext, on top of the Supertext Java SDK (API v1 in {@code com.supertext.magnolia.translation.internal.sdk.v1},
  * bundled in lib/supertext-sdk and compiled into the module's jar). The SDK does the protocol (upload, poll, download, delete, 429
  * retries, packing texts into {@code data-st-id} documents); this class adds what is Magnolia's:
  * the connection from the settings, the https-only endpoint rule, the module version in the
@@ -51,7 +52,8 @@ public class SupertextService {
      *
      * @param targetLanguage Supertext target code, e.g. {@code de-CH}
      * @param sourceLanguage Supertext source code, e.g. {@code en}; empty for auto-detection
-     * @param politeness     {@code default}, {@code more} or {@code less}
+     * @param politeness     {@code default}, {@code more} or {@code less}; only sent where the target offers it
+     *                       ({@link Languages#supportsPoliteness(String)}), otherwise Supertext would refuse the job
      * @throws SupertextException also when a text is missing from the answer (key {@code incomplete})
      */
     public Map<String, String> translateTexts(SupertextConnection connection, Map<String, Segment> texts,
@@ -60,8 +62,8 @@ public class SupertextService {
         SupertextClient client = client(connection);
         String source = sourceLanguage == null || sourceLanguage.isBlank() ? null : sourceLanguage;
         try {
-            return client.translateTexts(texts, targetLanguage, source, Politeness.fromValue(politeness));
-        } catch (com.supertext.magnolia.translation.internal.sdk.SupertextException e) {
+            return client.translateTexts(texts, targetLanguage, source, politenessFor(targetLanguage, politeness));
+        } catch (com.supertext.magnolia.translation.internal.sdk.v1.SupertextException e) {
             throw convert(e, source, targetLanguage);
         }
     }
@@ -71,8 +73,35 @@ public class SupertextService {
         SupertextClient client = client(connection);
         try {
             client.validateApiKey();
-        } catch (com.supertext.magnolia.translation.internal.sdk.SupertextException e) {
+        } catch (com.supertext.magnolia.translation.internal.sdk.v1.SupertextException e) {
             throw convert(e, null, null);
+        }
+    }
+
+    /** The form of address to send: the setting, but only for targets that offer formal/informal (else none). */
+    static Politeness politenessFor(String targetLanguage, String politeness) {
+        return Boolean.TRUE.equals(Languages.supportsPoliteness(targetLanguage)) ? Politeness.fromValue(politeness) : Politeness.DEFAULT;
+    }
+
+    /**
+     * The Supertext target code for a Magnolia language ({@code de_CH}): the mapping's entry, else an exact
+     * match ({@code de_CH} → {@code de-CH}), else the error {@code unsupportedLanguage} (nothing is sent).
+     * No default regions: {@code de} needs a mapping.
+     */
+    public static String targetCode(String language, Map<String, String> mapping) throws SupertextException {
+        try {
+            return Languages.target(language, mapping);
+        } catch (com.supertext.magnolia.translation.internal.sdk.v1.SupertextException e) {
+            throw convert(e, null, language);
+        }
+    }
+
+    /** The Supertext source code for a Magnolia language: the mapping's entry in its source form, else the bare language. */
+    public static String sourceCode(String language, Map<String, String> mapping) throws SupertextException {
+        try {
+            return Languages.source(language, mapping);
+        } catch (com.supertext.magnolia.translation.internal.sdk.v1.SupertextException e) {
+            throw convert(e, language, null);
         }
     }
 
@@ -98,12 +127,13 @@ public class SupertextService {
     }
 
     /** The SDK's error as the module's: message key and arguments for the UI, English message for the log. */
-    static SupertextException convert(com.supertext.magnolia.translation.internal.sdk.SupertextException e, String sourceLanguage, String targetLanguage) {
+    static SupertextException convert(com.supertext.magnolia.translation.internal.sdk.v1.SupertextException e, String sourceLanguage, String targetLanguage) {
         ErrorCode code = e.getCode();
         String detail = shorten(e.getDetail());
         String message = e.getMessage();
         Object[] args = new Object[0];
         boolean authentication = false;
+        Integer status = null;
         String key;
         switch (code) {
             case MISSING_API_KEY:
@@ -112,6 +142,20 @@ public class SupertextService {
                 key = "authentication";
                 message = "Authentication failed. Please check the Supertext API key. " + SupertextLinks.PLAIN_TEXT_HINT;
                 authentication = true;
+                status = e.getStatus() == null ? 401 : e.getStatus();
+                break;
+            case UNSUPPORTED_LANGUAGE:
+                key = "unsupportedLanguage";
+                args = new Object[] {orUnknown(e.getTargetLang() != null ? e.getTargetLang() : e.getSourceLang(),
+                        targetLanguage != null ? targetLanguage : sourceLanguage)};
+                detail = "";
+                message = "The Magnolia language " + args[0] + " has no Supertext language code. Map it in Translation → Supertext"
+                        + " → Language codes (e.g. de=de-CH). Nothing was sent.";
+                break;
+            case UNSUPPORTED_FEATURE:
+                key = "unsupportedFeature";
+                args = new Object[] {orUnknown(e.getFeature(), null), orUnknown(e.getTargetLang(), targetLanguage)};
+                detail = "";
                 break;
             case INVALID_LANGUAGE_PAIR:
                 key = "invalidLanguagePair";
@@ -160,7 +204,7 @@ public class SupertextService {
                 args = new Object[] {e.getStatus() == null ? "?" : String.valueOf(e.getStatus())};
                 break;
         }
-        return new SupertextException(KEY_PREFIX + key, args, detail, message, authentication, e);
+        return new SupertextException(KEY_PREFIX + key, args, detail, message, authentication, status, e);
     }
 
     private static SupertextException noApiKey() {

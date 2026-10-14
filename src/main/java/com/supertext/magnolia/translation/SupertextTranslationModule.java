@@ -15,6 +15,7 @@ public class SupertextTranslationModule {
     private String languageMapping = "";
     private String excludedProperties = "";
     private String additionalProperties = "";
+    private Boolean versionReports;
 
     /** API key, with or without the {@code Supertext-Auth-Key } prefix. */
     public String getApiKey() {
@@ -52,7 +53,10 @@ public class SupertextTranslationModule {
         this.pollTimeoutSeconds = pollTimeoutSeconds;
     }
 
-    /** One {@code magnoliaLocale=supertextCode} per line, e.g. {@code de=de-CH}. */
+    /**
+     * One {@code magnoliaLocale=supertextCode} per line, e.g. {@code de=de-CH}. Needed for every site language that
+     * isn't a Supertext code already (see {@link com.supertext.magnolia.translation.api.LanguageMapping}).
+     */
     public String getLanguageMapping() {
         return languageMapping;
     }
@@ -80,5 +84,17 @@ public class SupertextTranslationModule {
 
     public void setAdditionalProperties(String additionalProperties) {
         this.additionalProperties = additionalProperties;
+    }
+
+    /**
+     * "Send version information to Supertext"; {@code null} (never saved) means on. The environment variable
+     * {@code SUPERTEXT_VERSION_REPORTS} wins (see {@link SupertextSettings#versionReportsEnabled()}).
+     */
+    public Boolean getVersionReports() {
+        return versionReports;
+    }
+
+    public void setVersionReports(Boolean versionReports) {
+        this.versionReports = versionReports;
     }
 }

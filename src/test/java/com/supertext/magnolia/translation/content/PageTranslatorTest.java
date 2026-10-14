@@ -22,7 +22,7 @@ import info.magnolia.cms.i18n.LocaleDefinition;
 import info.magnolia.test.mock.jcr.MockSession;
 
 import com.supertext.magnolia.translation.api.SupertextException;
-import com.supertext.magnolia.translation.internal.sdk.Segment;
+import com.supertext.magnolia.translation.internal.sdk.v1.Segment;
 
 class PageTranslatorTest {
 

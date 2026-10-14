@@ -41,7 +41,7 @@ let context = await browser.newContext({ viewport, deviceScaleFactor: 1 });
 let page = await context.newPage();
 await signIn(page, base, process.env.DEMO_ADMIN_EMAIL, process.env.DEMO_ADMIN_PASSWORD);
 await page.goto(`${base}/.magnolia/admincentral#app:supertext:settings`);
-await page.waitForSelector('.supertext-settings', { timeout: 60000 });
+await page.waitForSelector('.supertext-settings', { timeout: 120000 }); // the first AdminCentral load after a fresh start is slow
 await page.waitForTimeout(1500);
 const keyField = page.locator('.supertext-settings input[type=password]');
 if (await keyField.isEnabled() && !(await keyField.getAttribute('placeholder'))) {
@@ -95,7 +95,7 @@ await shot(page, 'translated-de.png', { clip: { x: 0, y: 66, width: 1400, height
 await context.close();
 
 // Administrator: the app launcher and the Supertext app (settings).
-context = await browser.newContext({ viewport: { width: 1400, height: 1150 }, deviceScaleFactor: 1 });
+context = await browser.newContext({ viewport: { width: 1400, height: 1900 }, deviceScaleFactor: 1 });
 page = await context.newPage();
 await signIn(page, base, process.env.DEMO_ADMIN_EMAIL, process.env.DEMO_ADMIN_PASSWORD);
 await dismissNotifications(page);
@@ -105,5 +105,9 @@ await shot(page, 'app-launcher.png', { clip: await box(page.locator('.app-list.s
 await page.goto(`${base}/.magnolia/admincentral#app:supertext:settings`);
 await page.waitForSelector('.supertext-settings', { timeout: 60000 });
 await page.waitForTimeout(2000);
-await shot(page, 'settings.png', { clip: { x: 0, y: 66, width: 880, height: 1010 } });
+// The ping address is the demo's own (local) URL: left out of the image.
+await page.locator('.supertext-ping').evaluateAll((els) => els.forEach((el) => el.remove()));
+const form = page.locator('.supertext-settings');
+const height = Math.min(1830, Math.ceil((await form.boundingBox()).height) + 8);
+await shot(page, 'settings.png', { clip: { x: 0, y: 66, width: 880, height } });
 await browser.close();

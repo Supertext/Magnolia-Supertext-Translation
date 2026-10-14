@@ -3,6 +3,7 @@ package com.supertext.magnolia.translation.ui;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -29,6 +30,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import com.supertext.magnolia.translation.api.SupertextService;
 import com.supertext.magnolia.translation.api.SupertextException;
 import com.supertext.magnolia.translation.api.SupertextLinks;
+import com.supertext.magnolia.translation.internal.sdk.v1.ApiKeyCheck;
 
 /**
  * The interface strings (src/main/resources/supertext-translation/i18n) are complete in English,
@@ -110,6 +112,34 @@ class MessageBundlesTest {
             assertTrue(text.contains("Admin"), language + ": " + text);
         }
         assertEquals(2, html.split("target=\"_blank\" rel=\"noopener\"", -1).length - 1, language);
+    }
+
+    /** The Commando Center's five key check messages; invalid and missing carry both links (new tab). */
+    @ParameterizedTest
+    @ValueSource(strings = {"en", "de", "fr", "it"})
+    void keyCheckMessages(String language) {
+        SupertextMessages messages = new SupertextMessages(translator(language));
+        for (ApiKeyCheck.Status status : ApiKeyCheck.Status.values()) {
+            ApiKeyCheck check = new ApiKeyCheck(status, "2026-10-14T08:00:00Z", status == ApiKeyCheck.Status.ERROR ? 418 : null, null, "f");
+            String html = messages.keyCheckHtml(check);
+            assertFalse(html.contains("supertext-translation."), language + " " + status + ": " + html);
+            boolean links = status == ApiKeyCheck.Status.INVALID || status == ApiKeyCheck.Status.MISSING;
+            assertEquals(links, html.contains(SupertextLinks.SIGNUP_URL) && html.contains(SupertextLinks.API_KEY_URL), language + " " + status);
+            if (links) {
+                assertEquals(2, html.split("target=\"_blank\" rel=\"noopener\"", -1).length - 1, language + " " + status);
+            }
+            if (status == ApiKeyCheck.Status.ERROR) {
+                assertTrue(html.contains("HTTP 418"), html);
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"en", "de", "fr", "it"})
+    void unsupportedLanguageNamesTheLanguageAndWhereToMapIt(String language) {
+        SupertextException e = assertThrows(SupertextException.class, () -> SupertextService.targetCode("pt", java.util.Map.of()));
+        String text = new SupertextMessages(translator(language)).of(e);
+        assertTrue(text.contains("pt") && text.contains("Supertext →"), language + ": " + text);
     }
 
     @Test

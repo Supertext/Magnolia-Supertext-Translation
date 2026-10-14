@@ -1,6 +1,7 @@
 #!/bin/sh
 # Copies the Java Supertext SDK from its GitHub repository into lib/supertext-sdk, with its
-# package changed from com.supertext.sdk to com.supertext.magnolia.translation.internal.sdk.
+# package changed from com.supertext.sdk to com.supertext.magnolia.translation.internal.sdk
+# (API v1 in com.supertext.magnolia.translation.internal.sdk.v1).
 # Maven compiles this copy into the module's jar (build-helper-maven-plugin in pom.xml), so
 # sites install nothing besides the jar, and another module or webapp that ships the SDK
 # itself can never clash with it. Nothing else to run: `mvn install` picks the copy up.
@@ -32,7 +33,13 @@ DEST="$ROOT/lib/supertext-sdk"
 PKG_DIR="com/supertext/magnolia/translation/internal/sdk"
 rm -rf "$DEST"
 mkdir -p "$DEST/src/$PKG_DIR"
-cp "$SRC"/sdk/java/src/main/java/com/supertext/sdk/*.java "$DEST/src/$PKG_DIR/"
+# Version-neutral parts (SdkInfo, Transport, JdkHttpTransport) and API v1 in the subpackage v1 (since SDK 0.2.0).
+for sub in "" v1; do
+    if [ -d "$SRC/sdk/java/src/main/java/com/supertext/sdk/$sub" ]; then
+        mkdir -p "$DEST/src/$PKG_DIR/$sub"
+        cp "$SRC"/sdk/java/src/main/java/com/supertext/sdk/$sub/*.java "$DEST/src/$PKG_DIR/$sub/"
+    fi
+done
 cp "$SRC/LICENSE" "$DEST/LICENSE"
 find "$DEST/src" -name '*.java' -exec sed -i 's/\bcom\.supertext\.sdk\b/com.supertext.magnolia.translation.internal.sdk/g' {} +
 printf '%s\n' "$COMMIT" > "$DEST/COMMIT"
@@ -41,7 +48,7 @@ cat > "$DEST/README.md" <<EOT
 # Supertext SDK (bundled copy)
 
 Java part of the [Supertext SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide),
-version $VERSION, commit \`$COMMIT\`, package \`com.supertext.magnolia.translation.internal.sdk\` instead of \`com.supertext.sdk\`.
+version $VERSION, commit \`$COMMIT\`, package \`com.supertext.magnolia.translation.internal.sdk\` instead of \`com.supertext.sdk\` (API v1 in \`…internal.sdk.v1\`).
 Compiled into the module's jar (see \`build-helper-maven-plugin\` in \`pom.xml\`).
 
 Don't edit these files: fix the SDK in its own repository, then run \`scripts/vendor-sdk.sh\`.

@@ -4,9 +4,9 @@ Translate Magnolia pages into the other languages of their site with [Supertext]
 
 - **Translate with Supertext**: an action in the Pages app (page list and page editor) translates a page, its areas and components, and optionally its subpages, into the languages you tick. Existing translations are kept unless you choose to overwrite them.
 - Translates every text and rich text field marked `i18n: true` in the page's and components' dialogs, composite fields included. Formatting and links stay intact. Translations are saved in the page's language versions (`title_de_CH` …), ready to review in the page editor and publish.
-- **Supertext** app (app launcher → Translation): API key with a connection check, endpoint, form of address, language codes, excluded and additional fields.
+- **Supertext** app (app launcher → Translation): API key with an automatic check, endpoint, form of address, language codes (with a table of how each site language is sent), excluded and additional fields, version information for Supertext support.
 
-Requires Magnolia 6.4 (Community Edition or DX Core, Java 17/21) and a Supertext API key: [create a Supertext account](https://www.supertext.com/person/en/account/signin), then generate the key at [supertext.com → Integrations → API](https://www.supertext.com/en/integrations/api) (requires the Admin role).
+Requires Magnolia 6.4 (Community Edition or DX Core, Java 17/21) and a Supertext API key. No Supertext account yet? [Create one at supertext.com](https://www.supertext.com/person/en/account/signin). Generate your API key at [supertext.com → Integrations → API](https://www.supertext.com/en/integrations/api) (requires the Admin role).
 
 | Guide | For |
 | --- | --- |

@@ -2,12 +2,16 @@ package com.supertext.magnolia.translation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
+
+import com.supertext.magnolia.translation.api.SupertextException;
 
 class SupertextSettingsTest {
 
@@ -42,28 +46,47 @@ class SupertextSettingsTest {
     }
 
     @Test
-    void languageMappingMatchesLocaleTagOrLanguage() {
+    void mappingFirstThenExactMatchNoGuessing() throws SupertextException {
         SupertextTranslationModule module = new SupertextTranslationModule();
         module.setLanguageMapping("de=de-CH\nfr_CH = fr-FR");
         SupertextSettings s = settings(module, Map.of());
 
         assertEquals("de-CH", s.targetLanguageCode(Locale.GERMAN));
-        assertEquals("de-CH", s.targetLanguageCode(new Locale("de", "AT")), "falls back to the language");
         assertEquals("fr-FR", s.targetLanguageCode(new Locale("fr", "CH")));
-        assertEquals("it-CH", s.targetLanguageCode(new Locale("it", "CH")), "no entry: BCP-47 tag");
+        assertEquals("it-CH", s.targetLanguageCode(new Locale("it", "CH")), "no entry: exact match");
+        assertEquals("es", s.targetLanguageCode(new Locale("es")), "bare targets exist for most languages");
+        SupertextException e = assertThrows(SupertextException.class, () -> s.targetLanguageCode(new Locale("de", "LI")));
+        assertEquals("supertext-translation.error.unsupportedLanguage", e.key(), "no fallback to the bare language");
+        assertEquals("de_LI", e.args()[0]);
+        assertEquals("supertext-translation.error.unsupportedLanguage",
+                assertThrows(SupertextException.class, () -> settings(new SupertextTranslationModule(), Map.of()).targetLanguageCode(Locale.ITALIAN)).key(),
+                "no default region: it needs a mapping");
     }
 
     @Test
-    void bareLocalesGetARegionAsTargetAndSourcesAreBare() {
+    void oneMappingServesBothDirections() throws SupertextException {
         SupertextTranslationModule module = new SupertextTranslationModule();
-        module.setLanguageMapping("it=it\nen_GB=EN_gb");
+        module.setLanguageMapping("en=en-US\nde=de-CH");
         SupertextSettings s = settings(module, Map.of());
 
-        assertEquals("de-DE", s.targetLanguageCode(Locale.GERMAN), "bare locale: regional default");
-        assertEquals("it-IT", s.targetLanguageCode(Locale.ITALIAN), "bare mapping: regional default");
-        assertEquals("en-GB", s.targetLanguageCode(new Locale("en", "GB")), "mapping normalized");
-        assertEquals("en", s.sourceLanguageCode(new Locale("en", "GB")));
+        assertEquals("en-US", s.targetLanguageCode(Locale.ENGLISH));
+        assertEquals("en", s.sourceLanguageCode(Locale.ENGLISH), "a mapped target code is sent in its source form");
         assertEquals("de", s.sourceLanguageCode(new Locale("de", "CH")));
+        assertEquals("fr", s.sourceLanguageCode(new Locale("fr")));
+    }
+
+    @Test
+    void versionReportsAreOnByDefaultAndTheEnvironmentWins() {
+        SupertextTranslationModule module = new SupertextTranslationModule();
+        assertTrue(settings(module, Map.of()).versionReportsEnabled(), "not set: on");
+        assertFalse(settings(module, Map.of()).versionReportsFromEnvironment());
+        module.setVersionReports(false);
+        assertFalse(settings(module, Map.of()).versionReportsEnabled());
+        assertTrue(settings(module, Map.of("SUPERTEXT_VERSION_REPORTS", "1")).versionReportsEnabled());
+        module.setVersionReports(true);
+        SupertextSettings off = settings(module, Map.of("SUPERTEXT_VERSION_REPORTS", "0"));
+        assertFalse(off.versionReportsEnabled());
+        assertTrue(off.versionReportsFromEnvironment());
     }
 
     @Test

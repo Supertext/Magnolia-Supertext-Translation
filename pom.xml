@@ -124,6 +124,9 @@
         The Supertext Java SDK, bundled in lib/supertext-sdk (package
         com.supertext.magnolia.translation.internal.sdk, see its README) and compiled into this
         jar, so the jar stays the only file to install. Update it with scripts/vendor-sdk.sh.
+        Supertext Plugin Health, bundled the same way in lib/supertext-plugin-health (package
+        com.supertext.magnolia.translation.internal.pluginhealth). Update it with
+        scripts/vendor-plugin-health.sh.
       -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
@@ -139,6 +142,7 @@
             <configuration>
               <sources>
                 <source>lib/supertext-sdk/src</source>
+                <source>lib/supertext-plugin-health/src</source>
               </sources>
             </configuration>
           </execution>

@@ -1,9 +1,9 @@
-package com.supertext.magnolia.translation.internal.sdk.v1;
+package com.supertext.magnolia.translation.internal.pluginhealth;
 
 import java.time.Duration;
 import java.util.Locale;
 
-/** Defaults and the on/off switch for version reports (spec/reporting.json). */
+/** Defaults and the on/off switch for version reports (plugin-health/spec/reporter.json). */
 public final class Reporting {
 
     /** The live Supertext Commando Center. */
@@ -11,9 +11,6 @@ public final class Reporting {
 
     /** Timeout of a report. */
     public static final Duration REPORT_TIMEOUT = Duration.ofSeconds(3);
-
-    /** Longest timeout of the API key check ({@link SupertextClient#checkApiKey()}). */
-    public static final Duration KEY_CHECK_TIMEOUT = Duration.ofSeconds(10);
 
     /** After a failed report, no new attempt for this long (except {@link InstallationReporter#reportCheck}). */
     public static final Duration FAILURE_BACKOFF = Duration.ofSeconds(3600);

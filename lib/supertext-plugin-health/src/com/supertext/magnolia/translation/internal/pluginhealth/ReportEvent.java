@@ -1,4 +1,4 @@
-package com.supertext.magnolia.translation.internal.sdk.v1;
+package com.supertext.magnolia.translation.internal.pluginhealth;
 
 /** The event of a version report. {@link #value()} is the string the Commando Center expects. */
 public enum ReportEvent {

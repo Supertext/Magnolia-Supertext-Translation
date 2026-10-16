@@ -1,4 +1,4 @@
-package com.supertext.magnolia.translation.internal.sdk.v1;
+package com.supertext.magnolia.translation.internal.pluginhealth;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -8,8 +8,9 @@ import java.util.Objects;
  * What a plugin stores between requests for the {@link InstallationReporter}: store {@link #toJson()}
  * as it is and load it with {@link #fromJson(String)}. Immutable.
  *
- * <p>JSON shape (spec/reporting.json): {@code {"reportedVersions":…,"reportedKeyStatus":…,"lastFailureAt":…,
- * "keyCheck":{"status","checkedAt","httpStatus","errorCode","fingerprint"}}}.</p>
+ * <p>JSON shape (plugin-health/spec/reporter.json): {@code {"reportedVersions":…,"reportedKeyStatus":…,"lastFailureAt":…,
+ * "keyCheck":{"status","checkedAt","httpStatus","errorCode","fingerprint"}}}. It is the state the
+ * Supertext SDK 0.1–0.2 reporter stored, so a plugin that switches keeps its history.</p>
  */
 public final class ReporterState {
 
@@ -19,7 +20,7 @@ public final class ReporterState {
     private final String reportedVersions;
     private final String reportedKeyStatus;
     private final String lastFailureAt;
-    private final ApiKeyCheck keyCheck;
+    private final KeyCheck keyCheck;
 
     /**
      * @param reportedVersions  {@code <plugin>|<system>|<runtime>} versions last reported successfully
@@ -27,7 +28,7 @@ public final class ReporterState {
      * @param lastFailureAt     when the last report failed (no new attempt for an hour)
      * @param keyCheck          the latest key check
      */
-    public ReporterState(String reportedVersions, String reportedKeyStatus, String lastFailureAt, ApiKeyCheck keyCheck) {
+    public ReporterState(String reportedVersions, String reportedKeyStatus, String lastFailureAt, KeyCheck keyCheck) {
         this.reportedVersions = reportedVersions;
         this.reportedKeyStatus = reportedKeyStatus;
         this.lastFailureAt = lastFailureAt;
@@ -50,7 +51,7 @@ public final class ReporterState {
         }
         Map<?, ?> map = (Map<?, ?>) value;
         return new ReporterState(string(map.get("reportedVersions")), string(map.get("reportedKeyStatus")),
-                string(map.get("lastFailureAt")), ApiKeyCheck.fromMap(map.get("keyCheck")));
+                string(map.get("lastFailureAt")), KeyCheck.fromMap(map.get("keyCheck")));
     }
 
     /** The form to store (compact JSON, every field present). */
@@ -76,12 +77,12 @@ public final class ReporterState {
     }
 
     /** The latest key check, or {@code null}. */
-    public ApiKeyCheck getKeyCheck() {
+    public KeyCheck getKeyCheck() {
         return keyCheck;
     }
 
     /** A copy with another key check. */
-    public ReporterState withKeyCheck(ApiKeyCheck check) {
+    public ReporterState withKeyCheck(KeyCheck check) {
         return new ReporterState(reportedVersions, reportedKeyStatus, lastFailureAt, check);
     }
 

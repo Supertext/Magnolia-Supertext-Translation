@@ -30,6 +30,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import com.supertext.magnolia.translation.api.SupertextService;
 import com.supertext.magnolia.translation.api.SupertextException;
 import com.supertext.magnolia.translation.api.SupertextLinks;
+import com.supertext.magnolia.translation.internal.pluginhealth.KeyCheck;
 import com.supertext.magnolia.translation.internal.sdk.v1.ApiKeyCheck;
 
 /**
@@ -120,7 +121,7 @@ class MessageBundlesTest {
     void keyCheckMessages(String language) {
         SupertextMessages messages = new SupertextMessages(translator(language));
         for (ApiKeyCheck.Status status : ApiKeyCheck.Status.values()) {
-            ApiKeyCheck check = new ApiKeyCheck(status, "2026-10-14T08:00:00Z", status == ApiKeyCheck.Status.ERROR ? 418 : null, null, "f");
+            KeyCheck check = new KeyCheck(status.value(), "2026-10-14T08:00:00Z", status == ApiKeyCheck.Status.ERROR ? 418 : null, null, "f");
             String html = messages.keyCheckHtml(check);
             assertFalse(html.contains("supertext-translation."), language + " " + status + ": " + html);
             boolean links = status == ApiKeyCheck.Status.INVALID || status == ApiKeyCheck.Status.MISSING;

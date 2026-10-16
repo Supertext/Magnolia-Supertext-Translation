@@ -2,6 +2,7 @@ package com.supertext.magnolia.translation.ui;
 
 import com.supertext.magnolia.translation.api.SupertextException;
 import com.supertext.magnolia.translation.api.SupertextLinks;
+import com.supertext.magnolia.translation.internal.pluginhealth.KeyCheck;
 import com.supertext.magnolia.translation.internal.sdk.v1.ApiKeyCheck;
 
 /**
@@ -46,22 +47,22 @@ public final class SupertextMessages {
      * The automatic API key check's result as HTML (the Commando Center's five messages): links to supertext.com
      * open in a new tab; {@code error} names the HTTP status or Supertext's error code.
      */
-    public String keyCheckHtml(ApiKeyCheck check) {
+    public String keyCheckHtml(KeyCheck check) {
         if (check == null) {
             return "";
         }
-        String status = check.getStatus().value();
-        String detail = check.getHttpStatus() != null ? "HTTP " + check.getHttpStatus() : check.getErrorCode() != null ? check.getErrorCode() : "?";
-        if (check.getErrorCode() != null && check.getHttpStatus() != null) {
-            detail += ", " + check.getErrorCode();
+        String status = check.status();
+        String detail = check.httpStatus() != null ? "HTTP " + check.httpStatus() : check.errorCode() != null ? check.errorCode() : "?";
+        if (check.errorCode() != null && check.httpStatus() != null) {
+            detail += ", " + check.errorCode();
         }
         String text = i18n.translate(KEY_CHECK + status, SupertextLinks.SIGNUP_URL, SupertextLinks.API_KEY_URL, escape(detail));
         return text == null || text.equals(KEY_CHECK + status) ? escape(status) : text;
     }
 
     /** Whether the key check's result is good news. */
-    public static boolean ok(ApiKeyCheck check) {
-        return check != null && check.getStatus() == ApiKeyCheck.Status.OK;
+    public static boolean ok(KeyCheck check) {
+        return check != null && ApiKeyCheck.Status.OK.value().equals(check.status());
     }
 
     private static String escape(String text) {

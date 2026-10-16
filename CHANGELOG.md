@@ -6,11 +6,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
-- The module now talks to Supertext through the [Supertext Java SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide) 0.2.1, bundled in the module's jar: still one jar to install, no new libraries. Same protocol, retries and settings as before.
+- The module now talks to Supertext through the [Supertext Java SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide) 0.3.0, bundled in the module's jar: still one jar to install, no new libraries. Same protocol, retries and settings as before.
 - **Language codes: no more guessing.** Only the codes Supertext offers are sent: a *Language codes* line wins, else a locale that already is a Supertext code (`de_CH` → `de-CH`, `es`), else the language is reported as unsupported and nothing is sent for it. A bare `de`, `fr`, `it`, `en` or `pt` no longer gets a default region: add a line such as `de=de-CH`. One line serves both directions (`de=de-CH` sends `de` as the source). Check the new language table in the Supertext app after updating.
 - The form of address (formal/informal) is only sent for languages that offer it; English, Romansh, Albanian, Serbian and Swiss German are translated without it instead of failing.
 - *Check connection* now checks the saved API key and shows the same result as after saving.
 - If Supertext's answer is missing some texts, that language now fails with *Supertext’s answer was incomplete* and nothing is saved for it, instead of saving the rest and reporting *… texts came back unusable*. A page is no longer left half translated.
+- Version reports, the API key check result and the reachability ping now use Supertext Plugin Health 0.1.0 (bundled in `lib/supertext-plugin-health`, inside the module's jar); Supertext SDK updated to 0.3.0. No change for sites: settings and stored state stay as they are.
 - The demo runs Magnolia 6.4.11 Community Edition (was 6.4.10); the module is tested with 6.4.11 too and still compiles against 6.4.10, the oldest version it supports.
 
 ### Fixed

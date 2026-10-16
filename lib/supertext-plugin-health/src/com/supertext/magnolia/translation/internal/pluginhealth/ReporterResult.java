@@ -1,4 +1,4 @@
-package com.supertext.magnolia.translation.internal.sdk.v1;
+package com.supertext.magnolia.translation.internal.pluginhealth;
 
 /** What an {@link InstallationReporter} call did. Immutable. */
 public final class ReporterResult {
@@ -19,7 +19,7 @@ public final class ReporterResult {
     }
 
     /** The latest key check (show it on the settings or status page); {@code null} if none ran yet. */
-    public ApiKeyCheck getCheck() {
+    public KeyCheck getCheck() {
         return state.getKeyCheck();
     }
 

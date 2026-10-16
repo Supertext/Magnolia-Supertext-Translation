@@ -25,8 +25,8 @@ import com.supertext.magnolia.translation.SupertextSettings;
 import com.supertext.magnolia.translation.api.LanguageMapping;
 import com.supertext.magnolia.translation.api.SupertextService;
 import com.supertext.magnolia.translation.api.SupertextException;
-import com.supertext.magnolia.translation.internal.sdk.v1.ApiKeyCheck;
-import com.supertext.magnolia.translation.internal.sdk.v1.ReporterResult;
+import com.supertext.magnolia.translation.internal.pluginhealth.KeyCheck;
+import com.supertext.magnolia.translation.internal.pluginhealth.ReporterResult;
 import com.supertext.magnolia.translation.reporting.ReportingService;
 import com.supertext.magnolia.translation.ui.SiteLanguagesLookup;
 import com.supertext.magnolia.translation.ui.SupertextMessages;
@@ -283,7 +283,7 @@ public class SupertextSettingsView implements View {
         showCheck(result == null ? null : result.getCheck());
     }
 
-    private void showCheck(ApiKeyCheck check) {
+    private void showCheck(KeyCheck check) {
         if (check == null) {
             status.setValue("");
             return;
@@ -291,7 +291,7 @@ public class SupertextSettingsView implements View {
         String color = SupertextMessages.ok(check) ? "#2e7d32" : "#c62828";
         String mark = SupertextMessages.ok(check) ? "✓ " : "✗ ";
         status.setValue("<span style=\"color:" + color + "\">" + mark + messages.keyCheckHtml(check) + "</span>"
-                + "<div class=\"description\">" + escape(t("supertext-translation.keyCheck.checkedAt", check.getCheckedAt())) + "</div>");
+                + "<div class=\"description\">" + escape(t("supertext-translation.keyCheck.checkedAt", check.checkedAt())) + "</div>");
     }
 
     /** The site languages and how each is sent to Supertext (or that it needs a line in "Language codes"). */

@@ -1,4 +1,4 @@
-package com.supertext.magnolia.translation.internal.sdk.v1;
+package com.supertext.magnolia.translation.internal.pluginhealth;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
  * The answer of the plugin's public ping endpoint ({@code GET <callback>?challenge=<c>}), which the
  * Commando Center calls to confirm a reported installation. Answers only while version reporting is
  * on (else 404); nothing a caller sends is echoed unless it matches {@code ^[A-Za-z0-9_-]{16,64}$}.
+ * Answer with {@link #getStatus()}, {@link #getHeaders()} and {@link #getBody()} as they are.
  */
 public final class PingResponse {
 
@@ -33,9 +34,9 @@ public final class PingResponse {
     /**
      * @param challenge the {@code challenge} query parameter, or {@code null}
      * @param plugin    the plugin's GitHub repository name, e.g. {@code Magnolia-Supertext-Translation}
-     * @param enabled   whether version reporting is on ({@link Reporting#reportsEnabled(Boolean)})
+     * @param enabled   whether version reporting is on ({@link InstallationReporter#enabled()})
      */
-    public static PingResponse of(String challenge, String plugin, boolean enabled) {
+    public static PingResponse forChallenge(String challenge, String plugin, boolean enabled) {
         if (!enabled) {
             return new PingResponse(404, "{\"ok\":false}");
         }

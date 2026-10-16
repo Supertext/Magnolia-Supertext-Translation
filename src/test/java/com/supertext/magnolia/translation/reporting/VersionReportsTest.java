@@ -18,11 +18,12 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import com.supertext.magnolia.translation.api.SupertextConnection;
+import com.supertext.magnolia.translation.internal.pluginhealth.PingResponse;
+import com.supertext.magnolia.translation.internal.pluginhealth.ReportEvent;
+import com.supertext.magnolia.translation.internal.pluginhealth.ReporterResult;
+import com.supertext.magnolia.translation.internal.sdk.SdkInfo;
 import com.supertext.magnolia.translation.internal.sdk.Transport;
 import com.supertext.magnolia.translation.internal.sdk.v1.ApiKeyCheck;
-import com.supertext.magnolia.translation.internal.sdk.v1.PingResponse;
-import com.supertext.magnolia.translation.internal.sdk.v1.ReportEvent;
-import com.supertext.magnolia.translation.internal.sdk.v1.ReporterResult;
 
 /** The Commando Center glue against a fake transport: never reaches the live center or Supertext. */
 class VersionReportsTest {
@@ -72,7 +73,7 @@ class VersionReportsTest {
     void settingsSavedChecksTheKeyAndReportsInstalledThenSettingsSaved() {
         ReporterResult first = reports.run(VersionReports.Action.SETTINGS_SAVED, INSTALLATION, CONNECTION, true, 0);
         assertNotNull(first);
-        assertEquals(ApiKeyCheck.Status.OK, first.getCheck().getStatus());
+        assertEquals(ApiKeyCheck.Status.OK.value(), first.getCheck().status());
         assertEquals(ReportEvent.INSTALLED, first.getEvent());
         assertTrue(first.isSent());
         assertEquals("https://api.example.test/v1/features", requests.get(0).getUri().toString(), "key checked against the endpoint in effect");
@@ -81,18 +82,19 @@ class VersionReportsTest {
         assertTrue(body.contains("\"system\":{\"name\":\"Magnolia\",\"version\":\"6.4.11\"}"), body);
         assertTrue(body.contains("\"site_url\":\"https://cms.example.ch\""), body);
         assertTrue(body.contains("\"callback\":{\"url\":\"https://cms.example.ch/.supertext/ping\"}"), body);
+        assertTrue(body.contains("\"sdk_version\":\"" + SdkInfo.VERSION + "\""), body);
         assertFalse(body.contains("secret-key"), "never the key");
 
         ReporterResult second = reports.run(VersionReports.Action.SETTINGS_SAVED, INSTALLATION, CONNECTION, true, 0);
         assertEquals(ReportEvent.SETTINGS_SAVED, second.getEvent());
-        assertEquals(ApiKeyCheck.Status.OK, reports.lastCheck().getStatus(), "state stored");
+        assertEquals(ApiKeyCheck.Status.OK.value(), reports.lastCheck().status(), "state stored");
     }
 
     @Test
     void offMeansNoReportButTheKeyIsStillChecked() {
         keyStatus = 401;
         ReporterResult result = reports.run(VersionReports.Action.SETTINGS_SAVED, INSTALLATION, CONNECTION, false, 0);
-        assertEquals(ApiKeyCheck.Status.INVALID, result.getCheck().getStatus());
+        assertEquals(ApiKeyCheck.Status.INVALID.value(), result.getCheck().status());
         assertEquals(List.of(), reportBodies());
     }
 
@@ -112,8 +114,8 @@ class VersionReportsTest {
         reports.run(VersionReports.Action.SETTINGS_SAVED, INSTALLATION, CONNECTION, true, 0);
         requests.clear();
         ReporterResult result = reports.run(VersionReports.Action.AUTHENTICATION_FAILED, INSTALLATION, CONNECTION, true, 403);
-        assertEquals(ApiKeyCheck.Status.INVALID, result.getCheck().getStatus());
-        assertEquals(403, result.getCheck().getHttpStatus());
+        assertEquals(ApiKeyCheck.Status.INVALID.value(), result.getCheck().status());
+        assertEquals(403, result.getCheck().httpStatus());
         assertEquals(ReportEvent.API_KEY_CHECK, result.getEvent());
         assertTrue(requests.stream().noneMatch(r -> r.getUri().getPath().endsWith("/features")));
     }
@@ -124,7 +126,7 @@ class VersionReportsTest {
         ReporterResult result = reports.run(VersionReports.Action.TEST_CONNECTION, INSTALLATION, CONNECTION, true, 0);
         assertNotNull(result);
         assertFalse(result.isSent());
-        assertEquals(ApiKeyCheck.Status.OK, result.getCheck().getStatus());
+        assertEquals(ApiKeyCheck.Status.OK.value(), result.getCheck().status());
     }
 
     @Test
@@ -150,6 +152,19 @@ class VersionReportsTest {
     void theKeyIsNeverSentOverPlainHttp() {
         reports.run(VersionReports.Action.TEST_CONNECTION, INSTALLATION, new SupertextConnection("http://evil.example/v1/", "key"), false, 0);
         assertEquals("https://api.supertext.com/v1/features", requests.get(0).getUri().toString());
+    }
+
+    @Test
+    void aStateStoredByTheSdk02ReporterIsKeptWithoutANewInstalledReport() {
+        // What the SDK 0.2 reporter stored before the switch to Plugin Health.
+        stored = "{\"reportedVersions\":\"0.2.0|6.4.11|" + System.getProperty("java.version") + "\",\"reportedKeyStatus\":\"ok\","
+                + "\"lastFailureAt\":null,\"keyCheck\":{\"status\":\"ok\",\"checkedAt\":\"2026-10-14T08:00:00Z\",\"httpStatus\":200,"
+                + "\"errorCode\":null,\"fingerprint\":\"" + ApiKeyCheck.fingerprint("secret-key") + "\"}}";
+        String before = stored;
+        ReporterResult result = reports.run(VersionReports.Action.ON_REQUEST, INSTALLATION, CONNECTION, true, 0);
+        assertNull(result.getEvent(), "no new installed report");
+        assertEquals(List.of(), requests, "same key: not checked again");
+        assertEquals(before, stored, "same JSON");
     }
 
     @Test

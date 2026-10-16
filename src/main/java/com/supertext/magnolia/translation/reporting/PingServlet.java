@@ -9,13 +9,13 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import info.magnolia.objectfactory.Components;
 
-import com.supertext.magnolia.translation.internal.sdk.v1.PingResponse;
+import com.supertext.magnolia.translation.internal.pluginhealth.PingResponse;
 
 /**
  * {@code GET /.supertext/ping?challenge=<c>}: the public callback the Supertext Commando Center calls to see whether
  * this installation is reachable. No login, session or CSRF token (the setup task adds bypasses for the URI security
  * and admin setup filters, and the cache filter if there is one); {@code Cache-Control: no-store}. The answer is the
- * SDK's {@link PingResponse}: the challenge and the plugin name, nothing else; HTTP 404 while version reports are off.
+ * Supertext Plugin Health's {@link PingResponse}: the challenge and the plugin name, nothing else; HTTP 404 while version reports are off.
  * Only GET (HttpServlet answers other methods with 405).
  */
 public class PingServlet extends HttpServlet {

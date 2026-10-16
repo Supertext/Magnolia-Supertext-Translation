@@ -9,18 +9,23 @@ import org.slf4j.LoggerFactory;
 
 import com.supertext.magnolia.translation.api.SupertextConnection;
 import com.supertext.magnolia.translation.api.SupertextService;
+import com.supertext.magnolia.translation.internal.pluginhealth.InstallationReporter;
+import com.supertext.magnolia.translation.internal.pluginhealth.KeyCheck;
+import com.supertext.magnolia.translation.internal.pluginhealth.KeyChecker;
+import com.supertext.magnolia.translation.internal.pluginhealth.PingResponse;
+import com.supertext.magnolia.translation.internal.pluginhealth.ReporterResult;
+import com.supertext.magnolia.translation.internal.pluginhealth.ReporterState;
+import com.supertext.magnolia.translation.internal.sdk.SdkInfo;
 import com.supertext.magnolia.translation.internal.sdk.Transport;
 import com.supertext.magnolia.translation.internal.sdk.v1.ApiKeyCheck;
-import com.supertext.magnolia.translation.internal.sdk.v1.InstallationReporter;
-import com.supertext.magnolia.translation.internal.sdk.v1.PingResponse;
-import com.supertext.magnolia.translation.internal.sdk.v1.ReporterResult;
-import com.supertext.magnolia.translation.internal.sdk.v1.ReporterState;
+import com.supertext.magnolia.translation.internal.sdk.v1.SupertextClient;
 
 /**
  * The module's side of the Supertext Commando Center (Commando-Center-Supertext-Translation → docs/DEVELOPER.md →
- * <em>Report protocol</em>): version reports, the automatic API key check and the callback ping. The protocol is the
- * SDK's ({@link InstallationReporter}, {@link PingResponse}); this class gives it what the module knows and keeps the
- * reporter's state through a {@link StateStore}.
+ * <em>Report protocol</em>): version reports, the automatic API key check and the callback ping. The protocol is
+ * Supertext Plugin Health's ({@link InstallationReporter}, {@link PingResponse}, bundled in lib/supertext-plugin-health)
+ * with the SDK's {@link SupertextClient#checkApiKey()} as key check; this class gives it what the module knows and keeps
+ * the reporter's state through a {@link StateStore}.
  *
  * <p>No Magnolia classes, so it is unit-tested on its own with a fake {@link Transport}. Nothing here throws: a
  * failed report or key check never breaks a save, a page or a translation. The API key is never logged.</p>
@@ -68,12 +73,15 @@ public class VersionReports {
     private final String reportUrl;
     private final Clock clock;
 
-    /** Used by Magnolia: the SDK's HTTP transport, the report URL from {@code SUPERTEXT_REPORT_URL} or the SDK's default. */
+    /**
+     * Used by Magnolia: the JDK's HTTP client (the SDK's for the key check, Plugin Health's for the report), the report
+     * URL from {@code SUPERTEXT_REPORT_URL} or Plugin Health's default.
+     */
     public VersionReports(StateStore store) {
         this(store, null, null, null);
     }
 
-    /** For tests: a fake transport, report URL and clock ({@code null} = the SDK's defaults). */
+    /** For tests: a fake transport (key check and report), report URL and clock ({@code null} = the defaults). */
     public VersionReports(StateStore store, Transport transport, String reportUrl, Clock clock) {
         this.store = store;
         this.transport = transport;
@@ -83,15 +91,33 @@ public class VersionReports {
 
     /** The reporter for this installation. */
     public InstallationReporter reporter(Installation installation, SupertextConnection connection, boolean enabled) {
+        String apiBaseUrl = apiBaseUrl(connection);
+        String userAgent = PLUGIN_NAME + "/" + installation.pluginVersion();
         InstallationReporter.Builder builder = InstallationReporter.builder()
                 .enabled(enabled)
                 .siteUrl(installation.siteUrl())
                 .plugin(PLUGIN_NAME, installation.pluginVersion())
                 .system("Magnolia", installation.magnoliaVersion())
+                .sdkVersion(SdkInfo.VERSION)
                 .callbackUrl(pingUrl(installation.siteUrl()))
-                .apiBaseUrl(apiBaseUrl(connection));
+                .keyChecker(KeyChecker.of(key -> {
+                    SupertextClient.Builder client = SupertextClient.builder(key).baseUrl(apiBaseUrl).userAgent(userAgent);
+                    if (transport != null) {
+                        client.transport(transport);
+                    }
+                    if (clock != null) {
+                        client.wallClock(clock);
+                    }
+                    ApiKeyCheck c = client.build().checkApiKey();
+                    return new KeyCheck(c.getStatus().value(), c.getCheckedAt(), c.getHttpStatus(), c.getErrorCode(), c.getFingerprint());
+                }, ApiKeyCheck::fingerprint));
         if (transport != null) {
-            builder.transport(transport);
+            // The same fake answers the key check and the report.
+            builder.transport(request -> {
+                Transport.Response response = transport.send(new Transport.Request(request.getMethod(), request.getUri(),
+                        request.getHeaders(), request.getBody(), request.getTimeout()));
+                return response == null ? 0 : response.getStatus();
+            });
         }
         if (reportUrl != null) {
             builder.reportUrl(reportUrl);
@@ -134,7 +160,7 @@ public class VersionReports {
     }
 
     /** The latest stored key check (for the settings screen), or null. */
-    public ApiKeyCheck lastCheck() {
+    public KeyCheck lastCheck() {
         try {
             return ReporterState.fromJson(load()).getKeyCheck();
         } catch (RuntimeException e) {
@@ -144,7 +170,7 @@ public class VersionReports {
 
     /** The ping route's answer: 200 with the challenge, 400 for a bad challenge, 404 while reports are off. */
     public static PingResponse ping(String challenge, boolean enabled) {
-        return PingResponse.of(challenge, PLUGIN_NAME, enabled);
+        return PingResponse.forChallenge(challenge, PLUGIN_NAME, enabled);
     }
 
     /** The absolute URL of the ping route for a site URL. */

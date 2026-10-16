@@ -1,8 +1,4 @@
-package com.supertext.magnolia.translation.internal.sdk.v1;
-
-import com.supertext.magnolia.translation.internal.sdk.JdkHttpTransport;
-import com.supertext.magnolia.translation.internal.sdk.Transport;
-import com.supertext.magnolia.translation.internal.sdk.SdkInfo;
+package com.supertext.magnolia.translation.internal.pluginhealth;
 
 import java.io.IOException;
 import java.net.URI;
@@ -14,15 +10,17 @@ import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
- * Version reports to the Supertext Commando Center and the automatic API key check
- * (spec/reporting.json; protocol: Commando-Center-Supertext-Translation → docs/DEVELOPER.md → Report protocol).
+ * Version reports to the Supertext Commando Center and the result of the API key check
+ * (plugin-health/spec/reporter.json; protocol: the Commando Center's docs/DEVELOPER.md → Report protocol).
  *
  * <p>The reporter is stateless and thread-safe: the plugin loads its {@link ReporterState}
  * ({@link ReporterState#fromJson(String)}), passes it in, and stores the state it gets back
- * ({@link ReporterResult#getState()}). No call throws: the center is optional, and a failed report is
- * not tried again for {@link Reporting#FAILURE_BACKOFF}. Reports never contain the API key.</p>
+ * ({@link ReporterResult#getState()}). It never talks to Supertext itself: the plugin passes a
+ * {@link KeyChecker} built on the Supertext SDK. No call throws: the center is optional, and a failed
+ * report is not tried again for {@link Reporting#FAILURE_BACKOFF}. Reports never contain the API key.</p>
  *
  * <pre>{@code
  * InstallationReporter reporter = InstallationReporter.builder()
@@ -30,7 +28,9 @@ import java.util.Objects;
  *         .siteUrl("https://cms.example.ch")
  *         .plugin("Magnolia-Supertext-Translation", "0.2.0")
  *         .system("Magnolia", "6.4.10")
+ *         .sdkVersion(SdkInfo.VERSION)
  *         .callbackUrl("https://cms.example.ch/.supertext/ping")
+ *         .keyChecker(KeyChecker.of(key -> toKeyCheck(SupertextClient.builder(key).build().checkApiKey()), ApiKeyCheck::fingerprint))
  *         .build();
  * ReporterResult result = reporter.afterSettingsSaved(ReporterState.fromJson(stored), apiKey);
  * store(result.getState().toJson());
@@ -49,9 +49,8 @@ public final class InstallationReporter {
     private final String sdkVersion;
     private final String callbackUrl;
     private final String reportUrl;
-    private final String apiBaseUrl;
+    private final KeyChecker keyChecker;
     private final Transport transport;
-    private final SupertextClient.Sleeper sleeper;
     private final Clock clock;
 
     private InstallationReporter(Builder b) {
@@ -61,28 +60,32 @@ public final class InstallationReporter {
         this.pluginVersion = Objects.requireNonNull(b.pluginVersion, "plugin version");
         this.systemName = Objects.requireNonNull(b.systemName, "system name");
         this.systemVersion = b.systemVersion;
+        this.keyChecker = Objects.requireNonNull(b.keyChecker, "keyChecker");
         if (b.runtimeName != null) {
             this.runtimeName = b.runtimeName;
             this.runtimeVersion = b.runtimeVersion;
         } else {
             this.runtimeName = "Java";
-            this.runtimeVersion = System.getProperty("java.version");
+            this.runtimeVersion = javaVersion();
         }
-        this.sdkVersion = b.sdkVersion == null || b.sdkVersion.isEmpty() ? SdkInfo.VERSION : b.sdkVersion;
+        this.sdkVersion = b.sdkVersion == null || b.sdkVersion.isEmpty() ? null : b.sdkVersion;
         this.callbackUrl = b.callbackUrl == null || b.callbackUrl.isEmpty() ? null : b.callbackUrl;
         String url = b.reportUrl;
         if (url == null || url.isEmpty()) {
             url = System.getenv(Reporting.ENV_REPORT_URL);
         }
         this.reportUrl = url == null || url.trim().isEmpty() ? Reporting.DEFAULT_REPORT_URL : url.trim();
-        this.apiBaseUrl = b.apiBaseUrl;
         this.transport = b.transport != null ? b.transport : new JdkHttpTransport();
-        this.sleeper = b.sleeper;
         this.clock = b.clock != null ? b.clock : Clock.systemUTC();
     }
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    /** Whether reports are sent (the ping endpoint answers only then: {@link PingResponse#forChallenge}). */
+    public boolean enabled() {
+        return enabled;
     }
 
     /** Where reports go: the option, else {@code SUPERTEXT_REPORT_URL}, else {@link Reporting#DEFAULT_REPORT_URL}. */
@@ -107,17 +110,16 @@ public final class InstallationReporter {
      */
     public ReporterResult onRequest(ReporterState state, String apiKey) {
         ReporterState current = orEmpty(state);
-        ApiKeyCheck last = current.getKeyCheck();
-        if (last == null || !last.getFingerprint().equals(ApiKeyCheck.fingerprint(apiKey))) {
+        KeyCheck last = current.getKeyCheck();
+        if (last == null || !last.fingerprint().equals(fingerprint(apiKey))) {
             current = current.withKeyCheck(check(apiKey));
         }
         return reportIfDue(current, dueEvent(current));
     }
 
-    /** A translation was rejected with 401 or 403: the key is {@code invalid} (no request to Supertext). */
+    /** A translation was rejected with 401 or 403: the key is {@code invalid} (the checker isn't called). */
     public ReporterResult authenticationFailed(ReporterState state, String apiKey, int httpStatus) {
-        ApiKeyCheck check = new ApiKeyCheck(ApiKeyCheck.Status.INVALID, ApiKeyCheck.isoSeconds(clock.instant()), httpStatus, null,
-                ApiKeyCheck.fingerprint(apiKey));
+        KeyCheck check = new KeyCheck("invalid", KeyCheck.isoSeconds(clock.instant()), httpStatus, null, fingerprint(apiKey));
         ReporterState current = orEmpty(state).withKeyCheck(check);
         return reportIfDue(current, dueEvent(current));
     }
@@ -147,18 +149,20 @@ public final class InstallationReporter {
         body.put("plugin", nameVersion(pluginName, pluginVersion));
         body.put("system", nameVersion(systemName, systemVersion));
         body.put("runtime", nameVersion(runtimeName, runtimeVersion));
-        body.put("sdk_version", sdkVersion);
-        ApiKeyCheck check = orEmpty(state).getKeyCheck();
+        if (sdkVersion != null) {
+            body.put("sdk_version", sdkVersion);
+        }
+        KeyCheck check = orEmpty(state).getKeyCheck();
         if (check != null) {
-            body.put("api_key_configured", !check.getFingerprint().isEmpty());
+            body.put("api_key_configured", !check.fingerprint().isEmpty());
             Map<String, Object> c = new LinkedHashMap<>();
-            c.put("status", check.getStatus().value());
-            c.put("checked_at", check.getCheckedAt());
-            if (check.getHttpStatus() != null) {
-                c.put("http_status", check.getHttpStatus());
+            c.put("status", check.status());
+            c.put("checked_at", check.checkedAt());
+            if (check.httpStatus() != null) {
+                c.put("http_status", check.httpStatus());
             }
-            if (check.getErrorCode() != null) {
-                c.put("error_code", check.getErrorCode());
+            if (check.errorCode() != null) {
+                c.put("error_code", check.errorCode());
             }
             body.put("api_key_check", c);
         }
@@ -177,18 +181,25 @@ public final class InstallationReporter {
 
     // ---------------------------------------------------------------- internals
 
-    private ApiKeyCheck check(String apiKey) {
-        SupertextClient.Builder client = SupertextClient.builder(apiKey)
-                .transport(transport)
-                .wallClock(clock)
-                .userAgent(pluginName + "/" + pluginVersion);
-        if (apiBaseUrl != null) {
-            client.baseUrl(apiBaseUrl);
+    private KeyCheck check(String apiKey) {
+        try {
+            KeyCheck check = keyChecker.check(apiKey);
+            if (check != null) {
+                return check;
+            }
+        } catch (RuntimeException e) {
+            // The SDK's check never throws; a plugin's own checker might.
         }
-        if (sleeper != null) {
-            client.sleeper(sleeper);
+        return new KeyCheck("error", KeyCheck.isoSeconds(clock.instant()), null, null, fingerprint(apiKey));
+    }
+
+    private String fingerprint(String apiKey) {
+        try {
+            String fingerprint = keyChecker.fingerprint(apiKey);
+            return fingerprint == null ? "" : fingerprint;
+        } catch (RuntimeException e) {
+            return "";
         }
-        return client.build().checkApiKey();
     }
 
     private ReportEvent dueEvent(ReporterState state) {
@@ -198,8 +209,8 @@ public final class InstallationReporter {
         if (!state.getReportedVersions().equals(versions())) {
             return ReportEvent.UPGRADED;
         }
-        ApiKeyCheck check = state.getKeyCheck();
-        if (check != null && !check.getStatus().value().equals(state.getReportedKeyStatus())) {
+        KeyCheck check = state.getKeyCheck();
+        if (check != null && !check.status().equals(state.getReportedKeyStatus())) {
             return ReportEvent.API_KEY_CHECK;
         }
         return null;
@@ -231,11 +242,10 @@ public final class InstallationReporter {
             Map<String, String> headers = new LinkedHashMap<>();
             headers.put("Content-Type", "application/json");
             headers.put("Accept", "application/json");
-            headers.put("User-Agent", "supertext-sdk-java " + pluginName + "/" + pluginVersion);
+            headers.put("User-Agent", "supertext-plugin-health/" + PluginHealthInfo.VERSION + " (java) " + pluginName + "/" + pluginVersion);
             byte[] body = buildReportJson(event, state).getBytes(StandardCharsets.UTF_8);
-            Transport.Response response = transport.send(
-                    new Transport.Request("POST", URI.create(reportUrl), headers, body, Reporting.REPORT_TIMEOUT));
-            ok = response != null && response.getStatus() >= 200 && response.getStatus() < 300;
+            int status = transport.send(new Transport.Request("POST", URI.create(reportUrl), headers, body, Reporting.REPORT_TIMEOUT));
+            ok = status >= 200 && status < 300;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (IOException | RuntimeException e) {
@@ -243,11 +253,11 @@ public final class InstallationReporter {
         }
         ReporterState next;
         if (ok) {
-            ApiKeyCheck check = state.getKeyCheck();
-            next = new ReporterState(versions(), check != null ? check.getStatus().value() : state.getReportedKeyStatus(), null, check);
+            KeyCheck check = state.getKeyCheck();
+            next = new ReporterState(versions(), check != null ? check.status() : state.getReportedKeyStatus(), null, check);
         } else {
             next = new ReporterState(state.getReportedVersions(), state.getReportedKeyStatus(),
-                    ApiKeyCheck.isoSeconds(clock.instant()), state.getKeyCheck());
+                    KeyCheck.isoSeconds(clock.instant()), state.getKeyCheck());
         }
         return new ReporterResult(next, event, ok);
     }
@@ -265,6 +275,11 @@ public final class InstallationReporter {
         return map;
     }
 
+    /** {@link Runtime#version()} as dotted numbers ({@code 21.0.4}), without build or pre-release parts. */
+    static String javaVersion() {
+        return Runtime.version().version().stream().map(String::valueOf).collect(Collectors.joining("."));
+    }
+
     @Override
     public String toString() {
         return "InstallationReporter{plugin=" + pluginName + "/" + pluginVersion + ", enabled=" + enabled + ", reportUrl=" + reportUrl + "}";
@@ -272,7 +287,7 @@ public final class InstallationReporter {
 
     // ---------------------------------------------------------------- builder
 
-    /** Options for {@link InstallationReporter}. Required: {@code siteUrl}, {@code plugin}, {@code system}. */
+    /** Options for {@link InstallationReporter}. Required: {@code siteUrl}, {@code plugin}, {@code system}, {@code keyChecker}. */
     public static final class Builder {
         private boolean enabled = true;
         private String siteUrl;
@@ -285,9 +300,8 @@ public final class InstallationReporter {
         private String sdkVersion;
         private String callbackUrl;
         private String reportUrl;
-        private String apiBaseUrl;
+        private KeyChecker keyChecker;
         private Transport transport;
-        private SupertextClient.Sleeper sleeper;
         private Clock clock;
 
         private Builder() {
@@ -319,16 +333,22 @@ public final class InstallationReporter {
             return this;
         }
 
-        /** Default: {@code Java} and {@code System.getProperty("java.version")}. */
+        /** Default: {@code Java} and {@link Runtime#version()}. */
         public Builder runtime(String name, String version) {
             this.runtimeName = name;
             this.runtimeVersion = version;
             return this;
         }
 
-        /** Default: {@link SdkInfo#VERSION}. */
+        /** The bundled Supertext SDK's version ({@code SdkInfo.VERSION}); {@code null}: no {@code sdk_version} in reports. */
         public Builder sdkVersion(String sdkVersion) {
             this.sdkVersion = sdkVersion;
+            return this;
+        }
+
+        /** The SDK's key check: see {@link KeyChecker}. Required. */
+        public Builder keyChecker(KeyChecker keyChecker) {
+            this.keyChecker = keyChecker;
             return this;
         }
 
@@ -344,21 +364,9 @@ public final class InstallationReporter {
             return this;
         }
 
-        /** Supertext API base URL for the key check (default {@link SupertextClient#LIVE_BASE_URL}). */
-        public Builder apiBaseUrl(String apiBaseUrl) {
-            this.apiBaseUrl = apiBaseUrl;
-            return this;
-        }
-
-        /** HTTP for the key check and the report (default {@link JdkHttpTransport}). */
+        /** HTTP for the report (default {@link JdkHttpTransport}). */
         public Builder transport(Transport transport) {
             this.transport = transport;
-            return this;
-        }
-
-        /** How the key check waits before retrying a 429 (tests). */
-        public Builder sleeper(SupertextClient.Sleeper sleeper) {
-            this.sleeper = sleeper;
             return this;
         }
 

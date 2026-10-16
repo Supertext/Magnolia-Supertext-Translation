@@ -22,9 +22,9 @@ import info.magnolia.objectfactory.Components;
 
 import com.supertext.magnolia.translation.SupertextSettings;
 import com.supertext.magnolia.translation.api.SupertextService;
-import com.supertext.magnolia.translation.internal.sdk.v1.ApiKeyCheck;
-import com.supertext.magnolia.translation.internal.sdk.v1.PingResponse;
-import com.supertext.magnolia.translation.internal.sdk.v1.ReporterResult;
+import com.supertext.magnolia.translation.internal.pluginhealth.KeyCheck;
+import com.supertext.magnolia.translation.internal.pluginhealth.PingResponse;
+import com.supertext.magnolia.translation.internal.pluginhealth.ReporterResult;
 
 /**
  * Wires {@link VersionReports} to Magnolia: the site URL ({@code /server/defaultBaseUrl} or the current request), the
@@ -82,7 +82,7 @@ public class ReportingService {
     }
 
     /** The latest key check, or null. */
-    public ApiKeyCheck lastCheck() {
+    public KeyCheck lastCheck() {
         try {
             return MgnlContext.doInSystemContext(reports::lastCheck);
         } catch (RuntimeException e) {

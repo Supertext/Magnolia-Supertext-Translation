@@ -15,7 +15,7 @@ import com.supertext.magnolia.translation.api.SupertextService;
 import com.supertext.magnolia.translation.ui.settings.SettingsStore;
 import com.supertext.magnolia.translation.api.LanguageMapping;
 import com.supertext.magnolia.translation.api.SupertextException;
-import com.supertext.magnolia.translation.internal.sdk.v1.Reporting;
+import com.supertext.magnolia.translation.internal.pluginhealth.Reporting;
 
 /**
  * The settings in effect: the module configuration (edited in the Supertext app), with the API key and endpoint

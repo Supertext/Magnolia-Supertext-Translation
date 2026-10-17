@@ -28,6 +28,21 @@ const shot = async (target, name, options = {}) => {
   await target.screenshot({ path: images + name, ...options });
   console.log('wrote docs/images/' + name);
 };
+// Dates and times (the Pages app's "Modified" column, the key check's "Last checked") change with
+// every run: replace them with a fixed one in the same format, so the images only change with the UI.
+const freezeDates = (target) => target.evaluate(() => {
+  const fixed = [
+    [/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}, \d{4}(,? \d{1,2}:\d{2}(:\d{2})?( ?[AP]M)?)?/g, (m) => m.replace(/^\S+ \d{1,2}, \d{4}/, 'Oct 1, 2026').replace(/\d{1,2}:\d{2}(:\d{2})?/, (t) => (t.length > 5 ? '9:00:00' : '9:00'))],
+    [/\b\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?/g, (m) => m.replace(/^\d{4}-\d{2}-\d{2}/, '2026-10-01').replace(/\d{2}:\d{2}(:\d{2}(\.\d+)?)?/, (t) => '09:00:00.000'.slice(0, t.length))],
+    [/\b\d{1,2}\.\d{1,2}\.\d{2,4}(,? \d{1,2}:\d{2}(:\d{2})?)?/g, (m) => m.replace(/^\d{1,2}\.\d{1,2}\.\d{2,4}/, '01.10.2026').replace(/\d{1,2}:\d{2}(:\d{2})?/, (t) => (t.length > 5 ? '09:00:00' : '09:00'))],
+  ];
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    let v = n.nodeValue;
+    for (const [re, to] of fixed) v = v.replace(re, to);
+    if (v !== n.nodeValue) n.nodeValue = v;
+  }
+});
 const box = async (locator, pad = 12) => {
   const b = await locator.boundingBox();
   return { x: Math.max(0, b.x - pad), y: Math.max(0, b.y - pad), width: b.width + 2 * pad, height: b.height + 2 * pad };
@@ -58,6 +73,7 @@ await signIn(page, base, process.env.DEMO_EDITOR_EMAIL, process.env.DEMO_EDITOR_
 await openPages(page, base);
 await selectPage(page, 'supertext-demo');
 await page.mouse.move(0, 0);
+await freezeDates(page);
 await shot(page, 'pages-action.png', { clip: { x: 0, y: 66, width: 1400, height: 690 } });
 
 let dialog = await openTranslateDialog(page);
@@ -107,6 +123,7 @@ await page.waitForSelector('.supertext-settings', { timeout: 60000 });
 await page.waitForTimeout(2000);
 // The ping address is the demo's own (local) URL: left out of the image.
 await page.locator('.supertext-ping').evaluateAll((els) => els.forEach((el) => el.remove()));
+await freezeDates(page);
 const form = page.locator('.supertext-settings');
 const height = Math.min(1830, Math.ceil((await form.boundingBox()).height) + 8);
 await shot(page, 'settings.png', { clip: { x: 0, y: 66, width: 880, height } });

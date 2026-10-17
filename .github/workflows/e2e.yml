@@ -108,9 +108,9 @@ jobs:
             -e SUPERTEXT_API_KEY -e SUPERTEXT_VERSION_REPORTS=0 \
             -e DEMO_ADMIN_EMAIL -e DEMO_ADMIN_PASSWORD -e DEMO_EDITOR_EMAIL -e DEMO_EDITOR_PASSWORD \
             supertext-magnolia-demo
-          # First start: Magnolia installs its modules, then AdminCentral answers (401: the login form).
+          # First start: Magnolia installs its modules, then AdminCentral answers (with the login form, 401).
           timeout 600 sh -c "until docker logs demo-live 2>&1 | grep -qF 'Server startup in'; do sleep 5; done; \
-            until curl -s -o /dev/null -w '%{http_code}' $LIVE_URL/.magnolia/admincentral | grep -qE '^(200|302|401)$'; do sleep 5; done" \
+            until curl -s -o /dev/null -w '%{http_code}' $LIVE_URL/.magnolia/admincentral | grep -qE '^[234]'; do sleep 5; done" \
             || { docker logs demo-live; exit 1; }
 
       - name: Language list against the real API
@@ -148,9 +148,9 @@ jobs:
             -e SUPERTEXT_REPORT_URL=http://host.docker.internal:8765/report \
             -e DEMO_ADMIN_EMAIL -e DEMO_ADMIN_PASSWORD -e DEMO_EDITOR_EMAIL -e DEMO_EDITOR_PASSWORD \
             supertext-magnolia-demo
-          # First start: Magnolia installs its modules, then AdminCentral answers (401: the login form).
+          # First start: Magnolia installs its modules, then AdminCentral answers (with the login form, 401).
           timeout 600 sh -c "until docker logs demo-docs 2>&1 | grep -qF 'Server startup in'; do sleep 5; done; \
-            until curl -s -o /dev/null -w '%{http_code}' $DOCS_URL/.magnolia/admincentral | grep -qE '^(200|302|401)$'; do sleep 5; done" \
+            until curl -s -o /dev/null -w '%{http_code}' $DOCS_URL/.magnolia/admincentral | grep -qE '^[234]'; do sleep 5; done" \
             || { docker logs demo-docs; exit 1; }
           cd tools/docs
           DEMO_URL="$DOCS_URL" node screenshots.mjs

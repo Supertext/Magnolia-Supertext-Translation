@@ -13,7 +13,8 @@
  * See docs/DEVELOPER.md -> Docs screenshots.
  */
 import { chromium } from 'playwright';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { samePicture } from './png.mjs';
 import { dismissNotifications, fillTranslateDialog, openPages, openTranslateDialog, selectPage, signIn } from './magnolia.mjs';
 
 const base = (process.env.DEMO_URL || 'http://localhost:8080').replace(/\/$/, '');
@@ -27,7 +28,13 @@ mkdirSync(images, { recursive: true });
 const shot = async (target, name, options = {}) => {
   // animations: 'disabled' finishes CSS transitions (button hover fades, checkbox ticks), which
   // otherwise leave a few different pixels from run to run.
-  await target.screenshot({ path: images + name, animations: 'disabled', ...options });
+  const png = await target.screenshot({ animations: 'disabled', ...options });
+  // A shade of difference from Chromium's rendering is no UI change: keep the image then.
+  if (existsSync(images + name) && samePicture(readFileSync(images + name), png)) {
+    console.log('unchanged docs/images/' + name);
+    return;
+  }
+  writeFileSync(images + name, png);
   console.log('wrote docs/images/' + name);
 };
 // Dates and times (the Pages app's "Modified" column, the key check's "Last checked") change with

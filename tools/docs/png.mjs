@@ -1,6 +1,6 @@
 /**
  * Tells whether two PNG screenshots show the same thing. Chromium's software rendering can differ
- * by one shade from run to run (anti-aliasing and dithering on buttons), which is no UI change:
+ * by a shade or a stray pixel from run to run (anti-aliasing and dithering on buttons), which is no UI change:
  * screenshots.mjs keeps the existing image then, so docs/images/ only changes when the UI does.
  * Decodes 8-bit, non-interlaced greyscale/RGB/RGBA PNGs (what Playwright writes); anything else
  * counts as different.
@@ -57,8 +57,11 @@ function decode(buf) {
   return { width, height, channels, pixels: out };
 }
 
-/** True when both are the same size and no colour channel differs by more than `tolerance`. */
-export function samePicture(a, b, tolerance = 2) {
+/**
+ * True when both are the same size and no colour channel differs by more than `tolerance`, except
+ * for at most `outliers` values (a stray anti-aliased pixel; changing one letter touches far more).
+ */
+export function samePicture(a, b, tolerance = 2, outliers = 16) {
   if (a.equals(b)) return true;
   let x;
   let y;
@@ -69,8 +72,9 @@ export function samePicture(a, b, tolerance = 2) {
     return false;
   }
   if (!x || !y || x.width !== y.width || x.height !== y.height || x.channels !== y.channels) return false;
+  let off = 0;
   for (let i = 0; i < x.pixels.length; i++) {
-    if (Math.abs(x.pixels[i] - y.pixels[i]) > tolerance) return false;
+    if (Math.abs(x.pixels[i] - y.pixels[i]) > tolerance && ++off > outliers) return false;
   }
   return true;
 }

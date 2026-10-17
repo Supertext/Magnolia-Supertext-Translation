@@ -169,7 +169,7 @@ cd tools/docs && npm install && npx playwright install chromium && node stand-in
 DEMO_URL=http://localhost:8080 DEMO_ADMIN_EMAIL=… DEMO_ADMIN_PASSWORD=… DEMO_EDITOR_EMAIL=… DEMO_EDITOR_PASSWORD=… npm run screenshots
 ```
 
-The settings screenshot leaves out the ping address line (`.supertext-ping`), which would show the local demo URL. Dates and times on screen (the Pages app's *Modified* column, the key check's *Last checked*) are replaced with a fixed date before the screenshots are taken, CSS animations are finished (`animations: 'disabled'`), and an image that differs from the one in `docs/images/` by at most two shades per pixel (Chromium's anti-aliasing varies between runs) is left as it is (`tools/docs/png.mjs`), so the images only change when the UI does.
+The settings screenshot leaves out the ping address line (`.supertext-ping`), which would show the local demo URL. Dates and times on screen (the Pages app's *Modified* column, the key check's *Last checked*) are replaced with a fixed date before the screenshots are taken, CSS animations are finished (`animations: 'disabled'`), and an image that differs from the one in `docs/images/` by at most two shades per pixel, apart from a few stray pixels (Chromium’s anti-aliasing varies between runs), is left as it is (`tools/docs/png.mjs`), so the images only change when the UI does.
 
 New texts in the sample: run the stand-in with `STAND_IN_DUMP=<dir>` and translate what it writes to `<dir>/de-CH.json` into `sample-de.json`. Avoid the *Definitions* app in scripts: in Magnolia 6.4.10 it sends a message without a type, which breaks AdminCentral's banner and leaves error notifications behind.
 

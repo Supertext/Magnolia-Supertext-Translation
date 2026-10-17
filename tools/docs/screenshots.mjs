@@ -78,6 +78,8 @@ await shot(page, 'pages-action.png', { clip: { x: 0, y: 66, width: 1400, height:
 
 let dialog = await openTranslateDialog(page);
 await fillTranslateDialog(dialog, ['de_CH', 'fr_CH'], { overwrite: true });
+await page.mouse.move(0, 0);
+await page.waitForTimeout(1000); // let the checkbox animations finish (else a few pixels differ per run)
 await shot(page, 'translate-dialog.png', { clip: await box(dialog, 0) });
 await dialog.locator('.v-select-optiongroup label', { hasText: '· fr_CH' }).click(); // German only
 await dialog.getByRole('button', { name: 'Translate', exact: true }).click();

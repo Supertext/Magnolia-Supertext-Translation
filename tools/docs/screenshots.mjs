@@ -25,7 +25,9 @@ if (need.length) {
 const images = new URL('../../docs/images/', import.meta.url).pathname;
 mkdirSync(images, { recursive: true });
 const shot = async (target, name, options = {}) => {
-  await target.screenshot({ path: images + name, ...options });
+  // animations: 'disabled' finishes CSS transitions (button hover fades, checkbox ticks), which
+  // otherwise leave a few different pixels from run to run.
+  await target.screenshot({ path: images + name, animations: 'disabled', ...options });
   console.log('wrote docs/images/' + name);
 };
 // Dates and times (the Pages app's "Modified" column, the key check's "Last checked") change with

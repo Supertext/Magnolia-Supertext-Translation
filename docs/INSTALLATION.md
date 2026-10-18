@@ -132,13 +132,14 @@ form:
 
 Each site language is sent to Supertext as a Supertext language code. Supertext accepts only its own codes: targets regional for German, English, French, Italian and Portuguese (`de-CH`, `de-DE`, `de-AT`, `en-US`, `en-GB`, `fr-CH`, `fr-FR`, `it-CH`, `it-IT`, `pt-BR`, `pt-PT`), with a script for Chinese and Serbian (`zh-Hans`, `zh-Hant`, `sr-Latn`, `sr-Cyrl`), Swiss German dialects (`gsw-u-sd-chzh`, `gsw-u-sd-chbe`) and bare for all others (`es`, `nl`, `sl`, `cs`, `ja`, …). The main (source) language is sent bare (`en`, `de`).
 
-The module **doesn't guess**:
+The module resolves each language like this:
 
 1. A line under **Language codes** in the Supertext app wins: `magnoliaLocale=supertextCode`, e.g. `de=de-CH`.
 2. Otherwise a locale that already is a Supertext code is sent as it is (case and `_`/`-` don't matter): `de_CH` → `de-CH`, `fr_CH` → `fr-CH`, `es` → `es`.
-3. Otherwise the language is **not supported**: nothing is sent for it and editors see *The language … has no Supertext language code*. A bare `de`, `fr`, `it`, `en` or `pt` always needs a line, because Supertext needs to know the region (`de=de-CH` or `de=de-DE`).
+3. Otherwise Supertext's default for the language, where one is obvious (Supertext SDK defaults): `de` → `de-DE`, `en` → `en-US`, `fr` → `fr-FR`, `it` → `it-IT`, `pt` → `pt-PT`, `zh_CN` → `zh-Hans`, `zh_TW` → `zh-Hant`, a region of a language without regions → the language (`es_ES` → `es`). Add a line to choose another code, e.g. `de=de-CH` for Swiss spelling.
+4. Otherwise the language is **not supported**: nothing is sent for it and editors see *The language … has no Supertext language code*. `en_IE`, `de_LI`, `fr_BE` or `gsw` need a line.
 
-One line serves both directions: with `de=de-CH`, a site whose main language is `de` sends `de` as the source. The Supertext app lists every site language with the code it is sent as, whether the code comes from a line or is an exact match, and whether the language offers formal/informal; unsupported languages are marked red.
+One line serves both directions: with `de=de-CH`, a site whose main language is `de` sends `de` as the source. The Supertext app lists every site language with the code it is sent as, whether the code comes from a line, is an exact match or is Supertext's default, and whether the language offers formal/informal; unsupported languages are marked red.
 
 ```text
 de=de-CH
@@ -155,6 +156,7 @@ The module's own screens (the *Translate with Supertext* action and dialog, its 
 | Who | Can |
 | --- | --- |
 | Anyone who may edit the page (write permission on the `website` workspace, e.g. the `pages-app-editor` role) | Use **Translate with Supertext**. Translations are written with the editor's own rights, so Magnolia's access control applies. Magnolia has no per-language permissions: an editor of a page can translate it into every language of its site. |
+| Anyone who may edit the page | **Export for translation** and **Import translation** (same availability as *Translate with Supertext*). An import writes with the editor's own rights and checks write permission on each page the file names. Nothing to configure and no API key needed: they don't call Supertext. Uploads are limited to 10 MB by the dialog's upload field; the file is read once and its temporary copy deleted, nothing is stored. |
 | `superuser` | Open the Supertext app. To open it to other roles, decorate `supertext-translation:apps/supertext.yaml` (`permissions: roles`). |
 
 ## All settings

@@ -4,9 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- Export for translation (XLIFF 1.2 or HTML) and import of translated files; Supertext SDK 0.5.0. Two new actions in the Pages app: *Export for translation* downloads a page's texts for the ticked languages (HTML: one), *Import translation* uploads the translated file (at most 10 MB) and writes the texts into the page's languages with the same rules as *Translate with Supertext* (existing translations kept unless *Overwrite*), with a summary (imported, skipped because the source changed, untranslated, formatting changed, not in the file). Texts whose source changed since the export are only imported on request. English, German, French, Italian.
+
 ### Changed
 
 - The module now talks to Supertext through the [Supertext Java SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide) 0.3.0, bundled in the module's jar: still one jar to install, no new libraries. Same protocol, retries and settings as before.
+- A language without a *Language codes* line now uses Supertext's obvious default (Supertext SDK 0.4.0): `de` → `de-DE`, `en` → `en-US`, `fr` → `fr-FR`, `it` → `it-IT`, `pt` → `pt-PT`, `zh_CN` → `zh-Hans`, `es_ES` → `es`; the Supertext app shows it as *Supertext default*. Languages without an obvious default (`en_IE`, `de_LI`, `gsw` …) still need a line.
 - **Language codes: no more guessing.** Only the codes Supertext offers are sent: a *Language codes* line wins, else a locale that already is a Supertext code (`de_CH` → `de-CH`, `es`), else the language is reported as unsupported and nothing is sent for it. A bare `de`, `fr`, `it`, `en` or `pt` no longer gets a default region: add a line such as `de=de-CH`. One line serves both directions (`de=de-CH` sends `de` as the source). Check the new language table in the Supertext app after updating.
 - The form of address (formal/informal) is only sent for languages that offer it; English, Romansh, Albanian, Serbian and Swiss German are translated without it instead of failing.
 - *Check connection* now checks the saved API key and shows the same result as after saving.

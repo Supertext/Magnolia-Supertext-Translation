@@ -193,9 +193,10 @@ class SupertextServiceTest {
         assertEquals("fr-CH", SupertextService.targetCode("fr_CH", mapping));
         assertEquals("de", SupertextService.sourceCode("de", mapping));
         assertEquals("", SupertextService.sourceCode("", mapping), "auto-detect");
-        SupertextException e = assertThrows(SupertextException.class, () -> SupertextService.targetCode("pt", mapping));
+        assertEquals("pt-PT", SupertextService.targetCode("pt", mapping), "the SDK's default target");
+        SupertextException e = assertThrows(SupertextException.class, () -> SupertextService.targetCode("pt_AO", mapping));
         assertEquals("supertext-translation.error.unsupportedLanguage", e.key());
-        assertArrayEquals(new Object[] {"pt"}, e.args());
+        assertArrayEquals(new Object[] {"pt_AO"}, e.args());
         assertFalse(e.isAuthenticationProblem());
         assertTrue(e.getMessage().contains("Language codes"), e.getMessage());
         assertEquals("xx", assertThrows(SupertextException.class, () -> SupertextService.sourceCode("xx", mapping)).args()[0]);

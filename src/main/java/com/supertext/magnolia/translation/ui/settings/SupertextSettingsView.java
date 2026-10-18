@@ -333,7 +333,8 @@ public class SupertextSettingsView implements View {
                 code = "";
             } else if (target.supported()) {
                 code = "<code>" + escape(target.code()) + "</code> · " + escape(t(target.mapped()
-                        ? "supertext-translation.settings.languages.mapped" : "supertext-translation.settings.languages.exact"));
+                        ? "supertext-translation.settings.languages.mapped"
+                        : target.fromDefault() ? "supertext-translation.settings.languages.default" : "supertext-translation.settings.languages.exact"));
             } else {
                 code = "<span style=\"color:#c62828\">✗ " + escape(t("supertext-translation.settings.languages.unsupported", language)) + "</span>";
             }

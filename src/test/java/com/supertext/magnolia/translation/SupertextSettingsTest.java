@@ -46,7 +46,7 @@ class SupertextSettingsTest {
     }
 
     @Test
-    void mappingFirstThenExactMatchNoGuessing() throws SupertextException {
+    void mappingFirstThenExactMatchThenDefault() throws SupertextException {
         SupertextTranslationModule module = new SupertextTranslationModule();
         module.setLanguageMapping("de=de-CH\nfr_CH = fr-FR");
         SupertextSettings s = settings(module, Map.of());
@@ -58,9 +58,8 @@ class SupertextSettingsTest {
         SupertextException e = assertThrows(SupertextException.class, () -> s.targetLanguageCode(new Locale("de", "LI")));
         assertEquals("supertext-translation.error.unsupportedLanguage", e.key(), "no fallback to the bare language");
         assertEquals("de_LI", e.args()[0]);
-        assertEquals("supertext-translation.error.unsupportedLanguage",
-                assertThrows(SupertextException.class, () -> settings(new SupertextTranslationModule(), Map.of()).targetLanguageCode(Locale.ITALIAN)).key(),
-                "no default region: it needs a mapping");
+        assertEquals("it-IT", settings(new SupertextTranslationModule(), Map.of()).targetLanguageCode(Locale.ITALIAN),
+                "no entry: the SDK's default target");
     }
 
     @Test

@@ -35,8 +35,13 @@ class LanguageMappingTest {
         assertEquals("en", m.status("en", true).code(), "as source: bare");
 
         LanguageMapping.Status it = m.status("it", false);
-        assertFalse(it.supported(), "no default region");
-        assertNull(it.politeness());
+        assertEquals("it-IT", it.code(), "the SDK's default target");
+        assertTrue(it.fromDefault());
+        assertFalse(it.mapped());
+        assertFalse(frCh.fromDefault());
+        LanguageMapping.Status enIe = m.status("en_IE", false);
+        assertFalse(enIe.supported(), "no obvious default");
+        assertNull(enIe.politeness());
         assertEquals("it", m.status("it", true).code(), "a bare source is fine");
     }
 }

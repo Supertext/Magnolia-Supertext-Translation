@@ -91,13 +91,14 @@ export async function exportForTranslation(page, languages, format = 'xliff') {
 
 /** "Import translation": uploads a file (path) with the options and returns the notification text. */
 export async function importTranslation(page, path, { overwrite = false, includeChanged = false } = {}) {
-  await dismissNotifications(page); // e.g. the download's "Your file … is ready" message covers the action bar
+  await dismissNotifications(page);
   await page.locator('.v-actionbar').getByText('Import translation', { exact: true }).first().click();
   const dialog = page.locator('.v-window').filter({ hasText: 'Translated file (XLIFF or HTML)' }).first();
   await dialog.waitFor({ timeout: 30000 });
   await page.waitForTimeout(800);
   await dialog.locator('input[type=file]').first().setInputFiles(path);
   await page.waitForTimeout(2500); // the upload finishes in the background
+  await dismissNotifications(page); // the upload field's "Your file … was uploaded" message covers the dialog
   if (includeChanged) await dialog.getByText('Also import texts whose source changed since the export', { exact: true }).click();
   if (overwrite) await dialog.getByText('Overwrite existing translations', { exact: true }).click();
   await dialog.getByRole('button', { name: 'Import translation', exact: true }).click();

@@ -84,12 +84,14 @@ export async function exportForTranslation(page, languages, format = 'xliff') {
   });
   await dialog.getByRole('button', { name: 'Download file', exact: true }).click();
   const file = await download;
+  await page.bringToFront();
   const { readFile } = await import('node:fs/promises');
   return { name: file.suggestedFilename(), content: await readFile(await file.path(), 'utf8') };
 }
 
 /** "Import translation": uploads a file (path) with the options and returns the notification text. */
 export async function importTranslation(page, path, { overwrite = false, includeChanged = false } = {}) {
+  await dismissNotifications(page); // e.g. the download's "Your file … is ready" message covers the action bar
   await page.locator('.v-actionbar').getByText('Import translation', { exact: true }).first().click();
   const dialog = page.locator('.v-window').filter({ hasText: 'Translated file (XLIFF or HTML)' }).first();
   await dialog.waitFor({ timeout: 30000 });

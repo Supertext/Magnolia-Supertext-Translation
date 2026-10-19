@@ -186,7 +186,7 @@ class SupertextServiceTest {
     }
 
     @Test
-    void languagesAreResolvedWithoutGuessing() throws Exception {
+    void languagesAreResolvedByMappingExactMatchOrDefault() throws Exception {
         Map<String, String> mapping = Map.of("de", "de-CH", "no", "nb");
         assertEquals("de-CH", SupertextService.targetCode("de", mapping));
         assertEquals("nb", SupertextService.targetCode("no", mapping));

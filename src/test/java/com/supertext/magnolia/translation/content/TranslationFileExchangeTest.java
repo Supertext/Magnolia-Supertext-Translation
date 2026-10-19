@@ -37,7 +37,7 @@ class TranslationFileExchangeTest {
 
     @Test
     void exportUsesTheCollectorKeysAndTheMapping() throws Exception {
-        LanguageMapping mapping = LanguageMapping.parse("de=de-CH");
+        LanguageMapping mapping = LanguageMapping.of(Map.of("de", "de-CH"));
         String target = TranslationFileExchange.languageCode(() -> mapping.target("de"), "de");
         String source = TranslationFileExchange.languageCode(() -> mapping.source("en_US"), "en_US");
         FileJob job = TranslationFileExchange.job(PAGE, "de", source, target, SEGMENTS);
@@ -65,7 +65,7 @@ class TranslationFileExchangeTest {
 
     @Test
     void unmappedLanguagesDoNotBlockTheExport() {
-        LanguageMapping none = LanguageMapping.parse("");
+        LanguageMapping none = LanguageMapping.of(Map.of());
         assertEquals("en-IE", TranslationFileExchange.languageCode(() -> none.target("en_IE"), "en_IE"));
         assertEquals("de-DE", TranslationFileExchange.languageCode(() -> none.target("de"), "de"));
     }

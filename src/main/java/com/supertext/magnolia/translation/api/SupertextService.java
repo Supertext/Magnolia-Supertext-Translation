@@ -85,8 +85,8 @@ public class SupertextService {
 
     /**
      * The Supertext target code for a Magnolia language ({@code de_CH}): the mapping's entry, else an exact
-     * match ({@code de_CH} → {@code de-CH}), else the error {@code unsupportedLanguage} (nothing is sent).
-     * No default regions: {@code de} needs a mapping.
+     * match ({@code de_CH} → {@code de-CH}), else the SDK's default ({@code de} → {@code de-DE}), else the error
+     * {@code unsupportedLanguage} (nothing is sent): {@code de_LI}, {@code en_IE}, {@code gsw} need a mapping.
      */
     public static String targetCode(String language, Map<String, String> mapping) throws SupertextException {
         try {
@@ -149,8 +149,8 @@ public class SupertextService {
                 args = new Object[] {orUnknown(e.getTargetLang() != null ? e.getTargetLang() : e.getSourceLang(),
                         targetLanguage != null ? targetLanguage : sourceLanguage)};
                 detail = "";
-                message = "The Magnolia language " + args[0] + " has no Supertext language code. Map it in Translation → Supertext"
-                        + " → Language codes (e.g. de=de-CH). Nothing was sent.";
+                message = "The Magnolia language " + args[0] + " has no Supertext language code. Choose one in Translation → Supertext"
+                        + " → Language codes. Nothing was sent.";
                 break;
             case UNSUPPORTED_FEATURE:
                 key = "unsupportedFeature";

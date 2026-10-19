@@ -78,8 +78,9 @@ public class SupertextSettings {
     }
 
     /**
-     * The target code sent to Supertext for a Magnolia locale: the <em>Language codes</em> entry, else an exact
-     * match ({@code de_CH} → {@code de-CH}), else {@code unsupportedLanguage} (nothing is sent; no default regions).
+     * The target code sent to Supertext for a Magnolia locale: the <em>Language codes</em> combo box, else an exact
+     * match ({@code de_CH} → {@code de-CH}), else the SDK's default ({@code de} → {@code de-DE}), else
+     * {@code unsupportedLanguage} (nothing is sent).
      */
     public String targetLanguageCode(Locale locale) throws SupertextException {
         return languageMapping().target(locale.toString());
@@ -91,7 +92,7 @@ public class SupertextSettings {
     }
 
     public LanguageMapping languageMapping() {
-        return LanguageMapping.parse(module().getLanguageMapping());
+        return LanguageMapping.of(module().getLanguageCodes());
     }
 
     /** The "Send version information to Supertext" setting ({@code null} = not set = on); see {@link #versionReportsEnabled()}. */

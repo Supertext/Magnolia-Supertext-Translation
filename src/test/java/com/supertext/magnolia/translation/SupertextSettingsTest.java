@@ -48,24 +48,25 @@ class SupertextSettingsTest {
     @Test
     void mappingFirstThenExactMatchThenDefault() throws SupertextException {
         SupertextTranslationModule module = new SupertextTranslationModule();
-        module.setLanguageMapping("de=de-CH\nfr_CH = fr-FR");
+        module.setLanguageCodes(Map.of("de", "de-CH", "fr_CH", "fr-FR"));
         SupertextSettings s = settings(module, Map.of());
 
         assertEquals("de-CH", s.targetLanguageCode(Locale.GERMAN));
         assertEquals("fr-FR", s.targetLanguageCode(new Locale("fr", "CH")));
         assertEquals("it-CH", s.targetLanguageCode(new Locale("it", "CH")), "no entry: exact match");
         assertEquals("es", s.targetLanguageCode(new Locale("es")), "bare targets exist for most languages");
+        assertEquals("es", s.targetLanguageCode(new Locale("es", "ES")), "default: the bare target");
+        SupertextSettings none = settings(new SupertextTranslationModule(), Map.of());
+        assertEquals("it-IT", none.targetLanguageCode(Locale.ITALIAN), "no entry, no exact match: the SDK's default");
         SupertextException e = assertThrows(SupertextException.class, () -> s.targetLanguageCode(new Locale("de", "LI")));
-        assertEquals("supertext-translation.error.unsupportedLanguage", e.key(), "no fallback to the bare language");
+        assertEquals("supertext-translation.error.unsupportedLanguage", e.key(), "no default for de_LI");
         assertEquals("de_LI", e.args()[0]);
-        assertEquals("it-IT", settings(new SupertextTranslationModule(), Map.of()).targetLanguageCode(Locale.ITALIAN),
-                "no entry: the SDK's default target");
     }
 
     @Test
     void oneMappingServesBothDirections() throws SupertextException {
         SupertextTranslationModule module = new SupertextTranslationModule();
-        module.setLanguageMapping("en=en-US\nde=de-CH");
+        module.setLanguageCodes(Map.of("en", "en-US", "de", "de-CH"));
         SupertextSettings s = settings(module, Map.of());
 
         assertEquals("en-US", s.targetLanguageCode(Locale.ENGLISH));

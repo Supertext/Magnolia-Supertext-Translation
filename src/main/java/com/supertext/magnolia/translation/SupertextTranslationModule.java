@@ -1,5 +1,8 @@
 package com.supertext.magnolia.translation;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * Module settings as stored in {@code config:/modules/supertext-translation/config} (edited in
  * the <em>Supertext</em> app, app launcher → Translation). Also the Magnolia module class. Read
@@ -12,7 +15,7 @@ public class SupertextTranslationModule {
     private String endpoint = "";
     private String politeness = "default";
     private int pollTimeoutSeconds = 300;
-    private String languageMapping = "";
+    private Map<String, String> languageCodes = new LinkedHashMap<>();
     private String excludedProperties = "";
     private String additionalProperties = "";
     private Boolean versionReports;
@@ -54,15 +57,16 @@ public class SupertextTranslationModule {
     }
 
     /**
-     * One {@code magnoliaLocale=supertextCode} per line, e.g. {@code de=de-CH}. Needed for every site language that
-     * isn't a Supertext code already (see {@link com.supertext.magnolia.translation.api.LanguageMapping}).
+     * Magnolia language → Supertext code, e.g. {@code de=de-CH}: the combo boxes under <em>Language codes</em>,
+     * stored as the child node {@code languageCodes} (one property per language). A language without an entry is
+     * sent as its exact match or the SDK's default (see {@link com.supertext.magnolia.translation.api.LanguageMapping}).
      */
-    public String getLanguageMapping() {
-        return languageMapping;
+    public Map<String, String> getLanguageCodes() {
+        return languageCodes;
     }
 
-    public void setLanguageMapping(String languageMapping) {
-        this.languageMapping = languageMapping;
+    public void setLanguageCodes(Map<String, String> languageCodes) {
+        this.languageCodes = languageCodes == null ? new LinkedHashMap<>() : new LinkedHashMap<>(languageCodes);
     }
 
     /** Property names never translated (comma or line separated). */

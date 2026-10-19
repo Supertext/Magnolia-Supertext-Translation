@@ -89,6 +89,10 @@ public class SupertextSettingsView implements View {
     private final Map<String, ComboBox<String>> languageBoxes = new LinkedHashMap<>();
     /** The stored codes, so entries of languages no site has any more are kept on save. */
     private Map<String, String> storedCodes = new LinkedHashMap<>();
+    /** Target language → its <em>Translation review</em> checkbox (only while a review service is set). */
+    private final Map<String, CheckBox> reviewBoxes = new LinkedHashMap<>();
+    private Set<String> storedReview = new LinkedHashSet<>();
+    private final Label reviewHelp = new Label("", ContentMode.HTML);
     private final Label status = new Label("", ContentMode.HTML);
     private boolean keyStored;
 
@@ -159,6 +163,9 @@ public class SupertextSettingsView implements View {
         languages.addStyleName("supertext-languages");
         form.addComponent(languages);
         form.addComponent(help(escape(t("supertext-translation.settings.languageCodes.help"))));
+        reviewHelp.addStyleName("description");
+        reviewHelp.setWidth(100, Sizeable.Unit.PERCENTAGE);
+        form.addComponent(reviewHelp);
 
         excluded.setCaption(t("supertext-translation.settings.excluded"));
         excluded.setRows(2);
@@ -229,6 +236,7 @@ public class SupertextSettingsView implements View {
             versionReports.setValue(settings.versionReportsFromEnvironment() ? settings.versionReportsEnabled()
                     : !Boolean.FALSE.equals(parseBoolean(values.getOrDefault(SettingsStore.VERSION_REPORTS, ""))));
             storedCodes = store.readLanguageCodes();
+            storedReview = store.readReviewLanguages();
             buildLanguageRows(LanguageMapping.of(storedCodes));
         } catch (RepositoryException e) {
             log.warn("Supertext: could not read the settings", e);
@@ -275,6 +283,11 @@ public class SupertextSettingsView implements View {
         try {
             store.write(values);
             store.writeLanguageCodes(codes);
+            if (!reviewBoxes.isEmpty()) {
+                Map<String, Boolean> review = new LinkedHashMap<>();
+                reviewBoxes.forEach((language, box) -> review.put(language, Boolean.TRUE.equals(box.getValue())));
+                store.writeReviewLanguages(review);
+            }
             load();
             Notification.show(t("supertext-translation.settings.saved"), Notification.Type.HUMANIZED_MESSAGE);
         } catch (RepositoryException | RuntimeException e) {
@@ -347,16 +360,28 @@ public class SupertextSettingsView implements View {
     private void buildLanguageRows(LanguageMapping mapping) {
         languages.removeAllComponents();
         languageBoxes.clear();
+        reviewBoxes.clear();
+        // Translation review: a checkbox per target language, only while a review service is set (reviewUrl).
+        boolean review = settings.connection().reviewAvailable();
+        int infoColumn = review ? 3 : 2;
+        languages.setRows(1);
+        languages.setColumns(infoColumn + 1);
+        reviewHelp.setValue(review ? escape(t("supertext-translation.settings.review.help")) : "");
+        reviewHelp.setVisible(review);
         SiteLanguages site = siteLanguages();
         if (site.all().isEmpty()) {
-            languages.setRows(1);
-            languages.addComponent(help(escape(t("supertext-translation.settings.languages.none"))), 0, 0, 2, 0);
+            languages.addComponent(help(escape(t("supertext-translation.settings.languages.none"))), 0, 0, infoColumn, 0);
             return;
         }
         languages.setRows(site.all().size() + 1);
         languages.addComponent(html("<b>" + escape(t("supertext-translation.settings.languages.language")) + "</b>"), 0, 0);
         languages.addComponent(html("<b>" + escape(t("supertext-translation.settings.languages.code")) + "</b>"), 1, 0);
-        languages.addComponent(html("<b>" + escape(t("supertext-translation.settings.languages.sent")) + "</b>"), 2, 0);
+        if (review) {
+            Label reviewHeader = html("<b>" + escape(t("supertext-translation.settings.review")) + "</b>");
+            reviewHeader.setWidth(120, Sizeable.Unit.PIXELS); // the column is as wide as its widest cell: room for the header
+            languages.addComponent(reviewHeader, 2, 0);
+        }
+        languages.addComponent(html("<b>" + escape(t("supertext-translation.settings.languages.sent")) + "</b>"), infoColumn, 0);
         int row = 1;
         for (String language : site.all()) {
             ComboBox<String> box = new ComboBox<>();
@@ -380,9 +405,23 @@ public class SupertextSettingsView implements View {
             languages.addComponent(html(escape(SiteLanguagesLookup.displayName(Locale.forLanguageTag(language.replace('_', '-'))))
                     + " <code>" + escape(language) + "</code>"), 0, row);
             languages.addComponent(box, 1, row);
-            languages.addComponent(info, 2, row);
+            if (review && isTarget) {
+                CheckBox reviewBox = new CheckBox();
+                reviewBox.setValue(isReviewed(language));
+                reviewBox.setDescription(t("supertext-translation.settings.review.help"));
+                reviewBox.addStyleName("supertext-review-" + language);
+                reviewBoxes.put(language, reviewBox);
+                languages.addComponent(reviewBox, 2, row);
+            }
+            languages.addComponent(info, infoColumn, row);
             row++;
         }
+    }
+
+    /** Whether <em>Translation review</em> is stored for the language (case and {@code _}/{@code -} ignored). */
+    private boolean isReviewed(String language) {
+        String key = language.replace('-', '_').toLowerCase(Locale.ROOT);
+        return storedReview.stream().anyMatch(l -> l.replace('-', '_').toLowerCase(Locale.ROOT).equals(key));
     }
 
     /** How the language is sent with the code chosen in its combo box (or that it isn't, without one). */

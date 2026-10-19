@@ -36,6 +36,20 @@ class SettingsStoreTest {
     }
 
     @Test
+    void translationReviewIsStoredPerLanguage() throws Exception {
+        MockSession session = new MockSession("config");
+        Node config = NodeUtil.createPath(session.getRootNode(), SettingsStore.CONFIG_PATH.substring(1), NodeTypes.ContentNode.NAME);
+        assertEquals(java.util.Set.of(), SettingsStore.reviewLanguages(config), "off by default");
+        Map<String, Boolean> review = new LinkedHashMap<>();
+        review.put("de_CH", true);
+        review.put("fr_CH", false);
+        SettingsStore.writeReviewLanguages(config, review);
+        assertEquals(java.util.Set.of("de_CH"), SettingsStore.reviewLanguages(config));
+        SettingsStore.writeReviewLanguages(config, Map.of("de_CH", false));
+        assertEquals(java.util.Set.of(), SettingsStore.reviewLanguages(config));
+    }
+
+    @Test
     void noConfigNothingToMigrate() throws Exception {
         assertEquals(0, SettingsStore.migrateLegacyMapping(new MockSession("config")));
     }

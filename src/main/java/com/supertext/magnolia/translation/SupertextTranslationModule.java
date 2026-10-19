@@ -1,7 +1,9 @@
 package com.supertext.magnolia.translation;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Module settings as stored in {@code config:/modules/supertext-translation/config} (edited in
@@ -16,6 +18,8 @@ public class SupertextTranslationModule {
     private String politeness = "default";
     private int pollTimeoutSeconds = 300;
     private Map<String, String> languageCodes = new LinkedHashMap<>();
+    private Set<String> reviewLanguages = new LinkedHashSet<>();
+    private String reviewUrl;
     private String excludedProperties = "";
     private String additionalProperties = "";
     private Boolean versionReports;
@@ -67,6 +71,31 @@ public class SupertextTranslationModule {
 
     public void setLanguageCodes(Map<String, String> languageCodes) {
         this.languageCodes = languageCodes == null ? new LinkedHashMap<>() : new LinkedHashMap<>(languageCodes);
+    }
+
+    /**
+     * Magnolia languages with <em>Translation review</em> on (the checkboxes next to the combo boxes, stored as the
+     * child node {@code languageReview}, {@code de_CH = true}): translations into them go through Supertext's review
+     * service.
+     */
+    public Set<String> getReviewLanguages() {
+        return reviewLanguages;
+    }
+
+    public void setReviewLanguages(Set<String> reviewLanguages) {
+        this.reviewLanguages = reviewLanguages == null ? new LinkedHashSet<>() : new LinkedHashSet<>(reviewLanguages);
+    }
+
+    /**
+     * The review service's base URL ({@code reviewUrl}): {@code null} when not set (= Supertext's review service),
+     * {@code ""} = review off for every language. {@code SUPERTEXT_REVIEW_URL} wins.
+     */
+    public String getReviewUrl() {
+        return reviewUrl;
+    }
+
+    public void setReviewUrl(String reviewUrl) {
+        this.reviewUrl = reviewUrl;
     }
 
     /** Property names never translated (comma or line separated). */

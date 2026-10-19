@@ -103,13 +103,47 @@ class SupertextServiceTest {
         Transport.Request upload = requests.get(0);
         assertEquals("https://api.example.test/v1/translate/ai/file", upload.getUri().toString());
         assertEquals("Supertext-Auth-Key secret-key", upload.getHeaders().get("Authorization"), "pasted prefix sent once");
-        assertTrue(upload.getHeaders().get("User-Agent").endsWith(" Supertext-Magnolia/dev"), upload.getHeaders().get("User-Agent"));
+        assertTrue(upload.getHeaders().get("User-Agent").endsWith(" Magnolia-Supertext-Translation/dev"), upload.getHeaders().get("User-Agent"));
         String form = body(upload);
         assertTrue(form.contains("name=\"target_lang\"\r\n\r\nde-CH\r\n"), form);
         assertTrue(form.contains("name=\"source_lang\"\r\n\r\nen\r\n"), form);
         assertTrue(form.contains("name=\"politeness\"\r\n\r\nmore\r\n"), form);
         assertTrue(form.contains("<div data-st-id=\"0\">Welcome &amp; hello</div>"), "plain text is escaped: " + form);
         assertTrue(form.contains("<div data-st-id=\"1\"><p>Hello <b>world</b></p></div>"), "rich text as one segment: " + form);
+    }
+
+    @Test
+    void reviewLanguagesGoThroughTheReviewServiceOthersDirectly() throws Exception {
+        SupertextConnection connection = new SupertextConnection("https://api.example.test/v1/", "secret-key", 100, 30,
+                "https://review.example.test/v1/");
+
+        service.translateTexts(connection.forReview(true), texts(), "de-CH", "en", "default");
+        assertEquals(List.of("POST https://review.example.test/v1/translate/ai/file",
+                "GET https://review.example.test/v1/translate/ai/file/f-1/status",
+                "GET https://review.example.test/v1/translate/ai/file/f-1/translation",
+                "DELETE https://review.example.test/v1/translate/ai/file/f-1"),
+                requests.stream().map(r -> r.getMethod() + " " + r.getUri()).toList(), "upload, status, download and delete");
+        assertEquals("Supertext-Auth-Key secret-key", requests.get(0).getHeaders().get("Authorization"), "same key");
+        assertTrue(requests.get(0).getHeaders().get("User-Agent").endsWith(" Magnolia-Supertext-Translation/dev"));
+
+        requests.clear();
+        service.translateTexts(connection.forReview(false), texts(), "fr-CH", "en", "default");
+        assertTrue(requests.stream().allMatch(r -> r.getUri().toString().startsWith("https://api.example.test/v1/")),
+                "without review: directly to Supertext");
+    }
+
+    @Test
+    void noReviewUrlOrTheSameUrlMeansDirect() {
+        SupertextConnection off = new SupertextConnection("https://api.example.test/v1/", "k", 100, 30, "");
+        assertEquals(off, off.forReview(true), "empty review URL: review off for every language");
+        assertFalse(off.reviewAvailable());
+        SupertextConnection same = new SupertextConnection("https://api.example.test/v1/", "k", 100, 30, "https://api.example.test/v1");
+        assertEquals(same, same.forReview(true), "same URL as the API: no second client");
+        SupertextConnection on = new SupertextConnection("https://api.example.test/v1/", "k", 100, 30, SupertextService.REVIEW_URL);
+        assertTrue(on.reviewAvailable());
+        assertEquals(SupertextService.REVIEW_URL, on.forReview(true).endpoint());
+        assertEquals(30, on.forReview(true).pollTimeoutSeconds(), "same timeout");
+        assertEquals("https://localizationreview-production.up.railway.app/v1/", SupertextService.REVIEW_URL);
     }
 
     @Test

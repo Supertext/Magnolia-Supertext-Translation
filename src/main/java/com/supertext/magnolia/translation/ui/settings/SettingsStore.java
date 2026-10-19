@@ -1,7 +1,9 @@
 package com.supertext.magnolia.translation.ui.settings;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 import javax.jcr.Node;
 import javax.jcr.Property;
@@ -41,6 +43,10 @@ public class SettingsStore {
     public static final String POLL_TIMEOUT = "pollTimeoutSeconds";
     /** Child node: Magnolia language → Supertext code. */
     public static final String LANGUAGE_CODES = "languageCodes";
+    /** Child node: Magnolia language → {@code true} for languages with <em>Translation review</em> on. */
+    public static final String LANGUAGE_REVIEW = "languageReview";
+    /** The review service's base URL; not set = Supertext's review service, empty = off. No field in the app. */
+    public static final String REVIEW_URL = "reviewUrl";
     /** The textarea of 0.1.x, migrated into {@link #LANGUAGE_CODES}. */
     public static final String LEGACY_LANGUAGE_MAPPING = "languageMapping";
     public static final String EXCLUDED = "excludedProperties";
@@ -68,6 +74,20 @@ public class SettingsStore {
             module.setLanguageCodes(MgnlContext.doInSystemContext(() -> {
                 try {
                     return new SettingsStore().readLanguageCodes();
+                } catch (RepositoryException e) {
+                    throw new IllegalStateException(e);
+                }
+            }));
+            module.setReviewLanguages(MgnlContext.doInSystemContext(() -> {
+                try {
+                    return new SettingsStore().readReviewLanguages();
+                } catch (RepositoryException e) {
+                    throw new IllegalStateException(e);
+                }
+            }));
+            module.setReviewUrl(MgnlContext.doInSystemContext(() -> {
+                try {
+                    return new SettingsStore().readReviewUrl();
                 } catch (RepositoryException e) {
                     throw new IllegalStateException(e);
                 }
@@ -125,6 +145,62 @@ public class SettingsStore {
     public Map<String, String> readLanguageCodes() throws RepositoryException {
         Session session = MgnlContext.getJCRSession(RepositoryConstants.CONFIG);
         return session.nodeExists(CONFIG_PATH) ? languageCodes(session.getNode(CONFIG_PATH)) : new LinkedHashMap<>();
+    }
+
+    /** The stored {@code reviewUrl}, or {@code null} when it isn't set (then Supertext's review service is used). */
+    public String readReviewUrl() throws RepositoryException {
+        Session session = MgnlContext.getJCRSession(RepositoryConstants.CONFIG);
+        if (!session.nodeExists(CONFIG_PATH)) {
+            return null;
+        }
+        Node config = session.getNode(CONFIG_PATH);
+        return config.hasProperty(REVIEW_URL) ? config.getProperty(REVIEW_URL).getString() : null;
+    }
+
+    /** The languages with <em>Translation review</em> on. */
+    public Set<String> readReviewLanguages() throws RepositoryException {
+        Session session = MgnlContext.getJCRSession(RepositoryConstants.CONFIG);
+        return session.nodeExists(CONFIG_PATH) ? reviewLanguages(session.getNode(CONFIG_PATH)) : new LinkedHashSet<>();
+    }
+
+    static Set<String> reviewLanguages(Node config) throws RepositoryException {
+        Set<String> languages = new LinkedHashSet<>();
+        if (config.hasNode(LANGUAGE_REVIEW)) {
+            PropertyIterator properties = config.getNode(LANGUAGE_REVIEW).getProperties();
+            while (properties.hasNext()) {
+                Property property = properties.nextProperty();
+                if (!property.getName().contains(":") && !property.isMultiple() && Boolean.parseBoolean(property.getString())) {
+                    languages.add(property.getName());
+                }
+            }
+        }
+        return languages;
+    }
+
+    /**
+     * Sets <em>Translation review</em> for the given languages ({@code true} = on); languages not in the map keep
+     * their stored value (e.g. a language no site has any more).
+     */
+    public void writeReviewLanguages(Map<String, Boolean> review) throws RepositoryException {
+        Session session = MgnlContext.getJCRSession(RepositoryConstants.CONFIG);
+        Node config = NodeUtil.createPath(session.getRootNode(), CONFIG_PATH.substring(1), NodeTypes.ContentNode.NAME);
+        writeReviewLanguages(config, review);
+        session.save();
+    }
+
+    static void writeReviewLanguages(Node config, Map<String, Boolean> review) throws RepositoryException {
+        Node node = config.hasNode(LANGUAGE_REVIEW) ? config.getNode(LANGUAGE_REVIEW) : config.addNode(LANGUAGE_REVIEW, NodeTypes.ContentNode.NAME);
+        for (Map.Entry<String, Boolean> entry : review.entrySet()) {
+            try {
+                if (Boolean.TRUE.equals(entry.getValue())) {
+                    node.setProperty(entry.getKey(), true);
+                } else if (node.hasProperty(entry.getKey())) {
+                    node.getProperty(entry.getKey()).remove();
+                }
+            } catch (RepositoryException e) {
+                log.warn("Supertext: could not store Translation review for \"{}\": {}", entry.getKey(), e.getMessage());
+            }
+        }
     }
 
     /** Replaces the stored language codes (an empty value removes the entry). */

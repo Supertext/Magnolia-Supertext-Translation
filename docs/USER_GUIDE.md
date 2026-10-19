@@ -24,6 +24,8 @@ Open the page in the page editor and pick the language in the **language selecto
 
 ![The German version in the page editor, with translated title, introduction, rich text and quote](images/translated-de.png)
 
+**Translation review:** if your administrator turned on *Translation review* for a language, reviewers (your colleagues or Supertext linguists) check and correct the translations on the website. Their corrections come into Magnolia the next time you translate the page into that language with *Overwrite existing translations*: after a review, translate it again. Texts reviewed once keep their corrected wording in later translations.
+
 ## Translate again
 
 Without **Overwrite existing translations**, texts that already have a translation in that language are kept, including your corrections; only texts without a translation (for example a new component) are translated. The message says how many were kept:

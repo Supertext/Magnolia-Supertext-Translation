@@ -31,6 +31,26 @@ class SupertextSettingsTest {
     }
 
     @Test
+    void translationReviewPerLanguage() {
+        SupertextTranslationModule module = new SupertextTranslationModule();
+        module.setApiKey("k");
+        module.setReviewLanguages(Set.of("de_CH"));
+        SupertextSettings s = settings(module, Map.of());
+
+        assertEquals("https://localizationreview-production.up.railway.app/v1/", s.reviewUrl(), "default: Supertext's review service");
+        assertEquals("https://localizationreview-production.up.railway.app/v1/", s.connection(new Locale("de", "CH")).endpoint());
+        assertEquals("https://api.supertext.com/v1/", s.connection(new Locale("fr", "CH")).endpoint(), "review off: directly");
+        assertEquals("https://api.supertext.com/v1/", s.connection().endpoint(), "key check and reports: directly");
+
+        module.setReviewUrl("");
+        assertEquals("https://api.supertext.com/v1/", s.connection(new Locale("de", "CH")).endpoint(), "empty reviewUrl: off everywhere");
+        module.setReviewUrl("https://stored.example/v1/");
+        assertEquals("https://stored.example/v1/", s.connection(new Locale("de", "CH")).endpoint());
+        SupertextSettings env = settings(module, Map.of("SUPERTEXT_REVIEW_URL", "http://localhost:3000/v1/"));
+        assertEquals("http://localhost:3000/v1/", env.connection(new Locale("de", "CH")).endpoint(), "the environment wins");
+    }
+
+    @Test
     void storedValuesAndDefaults() {
         SupertextTranslationModule module = new SupertextTranslationModule();
         module.setApiKey(" stored ");

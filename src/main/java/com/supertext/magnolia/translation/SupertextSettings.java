@@ -27,6 +27,7 @@ public class SupertextSettings {
 
     public static final String API_KEY_VARIABLE = "SUPERTEXT_API_KEY";
     public static final String ENDPOINT_VARIABLE = "SUPERTEXT_API_ENDPOINT";
+    public static final String REVIEW_URL_VARIABLE = "SUPERTEXT_REVIEW_URL";
 
     private final Supplier<SupertextTranslationModule> module;
     private final Function<String, String> environment;
@@ -65,7 +66,39 @@ public class SupertextSettings {
         String apiKey = firstNonEmpty(apiKeyFromEnvironment(), m.getApiKey());
         String endpoint = firstNonEmpty(endpointFromEnvironment(), m.getEndpoint(), SupertextService.DEFAULT_ENDPOINT);
         int timeout = m.getPollTimeoutSeconds() > 0 ? m.getPollTimeoutSeconds() : 300;
-        return new SupertextConnection(endpoint, SupertextService.normalizeApiKey(apiKey), 2000, timeout);
+        return new SupertextConnection(endpoint, SupertextService.normalizeApiKey(apiKey), 2000, timeout, reviewUrl());
+    }
+
+    /**
+     * The connection for translations into a Magnolia language: the review service when its <em>Translation
+     * review</em> is on and a review URL is set, else Supertext directly. Only for translations: the key check and
+     * the reports use {@link #connection()}.
+     */
+    public SupertextConnection connection(Locale target) {
+        return connection().forReview(reviewFor(target));
+    }
+
+    /**
+     * The review service in effect: {@code SUPERTEXT_REVIEW_URL} when set, else the stored {@code reviewUrl}
+     * ({@code ""} = off), else Supertext's review service ({@link SupertextService#REVIEW_URL}).
+     */
+    public String reviewUrl() {
+        String fromEnvironment = trim(environment.apply(REVIEW_URL_VARIABLE));
+        if (!fromEnvironment.isEmpty()) {
+            return fromEnvironment;
+        }
+        String stored = module().getReviewUrl();
+        return stored == null ? SupertextService.REVIEW_URL : stored.trim();
+    }
+
+    /** Whether <em>Translation review</em> is ticked for the language (case and {@code _}/{@code -} ignored). */
+    public boolean reviewFor(Locale target) {
+        String key = reviewKey(target.toString());
+        return module().getReviewLanguages().stream().anyMatch(language -> reviewKey(language).equals(key));
+    }
+
+    private static String reviewKey(String language) {
+        return language == null ? "" : language.trim().replace('-', '_').toLowerCase(Locale.ROOT);
     }
 
     public boolean hasApiKey() {

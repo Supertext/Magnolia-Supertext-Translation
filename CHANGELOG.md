@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- **Translation review** on/off per language (Supertext app → *Language codes*, a checkbox next to each translated language's combo box): translations into a ticked language go through Supertext's review service (Supertext Localization Review), where customers and Supertext linguists correct them on the website with a Chrome extension; corrections come back into Magnolia with the next translation, and texts translated before keep their (reviewed) wording. Same API key, billing, languages and messages; other languages keep going directly to Supertext. New setting `reviewUrl` / `SUPERTEXT_REVIEW_URL` (defaults to Supertext's review service; empty turns review off for every language). English, German, French, Italian.
+- Requests to Supertext name the module and its version in the User-Agent (`Magnolia-Supertext-Translation/<version>`, was `Supertext-Magnolia/<version>`).
+
 - Export for translation (XLIFF 1.2 or HTML) and import of translated files; Supertext SDK 0.5.0. Two new actions in the Pages app: *Export for translation* downloads a page's texts for the ticked languages (HTML: one), *Import translation* uploads the translated file (at most 10 MB) and writes the texts into the page's languages with the same rules as *Translate with Supertext* (existing translations kept unless *Overwrite*), with a summary (imported, skipped because the source changed, untranslated, formatting changed, not in the file). Texts whose source changed since the export are only imported on request. English, German, French, Italian.
 
 ### Changed

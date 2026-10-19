@@ -109,5 +109,5 @@ await page.waitForTimeout(2000);
 await page.locator('.supertext-ping').evaluateAll((els) => els.forEach((el) => el.remove()));
 const form = page.locator('.supertext-settings');
 const height = Math.min(1830, Math.ceil((await form.boundingBox()).height) + 8);
-await shot(page, 'settings.png', { clip: { x: 0, y: 66, width: 1060, height } }); // wide enough for the Language codes rows
+await shot(page, 'settings.png', { clip: { x: 0, y: 66, width: 1180, height } }); // wide enough for the Language codes rows
 await browser.close();

@@ -8,7 +8,7 @@ For administrators who install and configure the module.
 - The standard modules *Pages app* (`pages-app`) and *Site* (`site`). Every Magnolia bundle has them.
 - A site with more than one language (see [Language setup](#language-setup)).
 - A Supertext account with an API key for AI translation (see [API key](#api-key)).
-- The Magnolia server must reach `https://api.supertext.com` over HTTPS.
+- The Magnolia server must reach `https://api.supertext.com` over HTTPS (and, for [Translation review](#translation-review), Supertext's review service).
 
 ## Install
 
@@ -74,7 +74,7 @@ The Supertext app shows both links below the API key field.
 
 **Check connection** runs the same check again with the saved key (or the one from `SUPERTEXT_API_KEY`); save a newly typed key first. An invalid key never blocks saving. The check also runs on its own when the key in the environment changed, and when Supertext rejects the key during a translation; the app then shows that result the next time it is opened.
 
-![The Supertext app with a stored API key and, under Language codes, a combo box per site language: English (United States) (en-US) for the main language en, German, French and Italian (Switzerland) for de_CH, fr_CH and it_CH, with how each is sent](images/settings.png)
+![The Supertext app with a stored API key and, under Language codes, a combo box per site language: English (United States) (en-US) for the main language en, German, French and Italian (Switzerland) for de_CH, fr_CH and it_CH, each translated language with a Translation review checkbox (not ticked), and how each is sent](images/settings.png)
 
 The top of the app shows the installed **version**, linked to its release notes on GitHub; quote it when you contact support.
 
@@ -86,6 +86,7 @@ The key is stored in Magnolia's configuration (`config:/modules/supertext-transl
 | --- | --- |
 | `SUPERTEXT_API_KEY` | API key. The app then shows that the key comes from the environment and disables the field. |
 | `SUPERTEXT_API_ENDPOINT` | API endpoint, default `https://api.supertext.com/v1/`. The endpoint field is then disabled. |
+| `SUPERTEXT_REVIEW_URL` | Another review service for [Translation review](#translation-review) than Supertext's (the `reviewUrl` setting); empty keeps the setting. |
 | `SUPERTEXT_VERSION_REPORTS` | `0` (or `false`, `off`, `no`) turns [version information](#version-information-and-the-api-key-check) off, `1` (`true`, `on`, `yes`) on, whatever the setting says. The checkbox is then disabled. |
 | `SUPERTEXT_REPORT_URL` | For tests only: where version reports go instead of Supertext's Commando Center. |
 
@@ -150,6 +151,8 @@ The combo box of a language without a stored choice preselects step 2 or 3, so f
 | `es_ES`, `nl_NL`, … (region of a language without regions) | `es`, `nl`, … |
 | `en_IE`, `de_LI`, `fr_BE`, `gsw`, `sr_RS`, … | *— choose —* |
 
+The **Translation review** checkbox next to each translated language's combo box sends translations into that language through Supertext's review service; see [Translation review](#translation-review). Off by default.
+
 **Updating from 0.1.x:** the *Language codes* text field (`de=de-CH`, one per line) is moved into the combo boxes at the first start of the new version (startup task *Supertext language codes*); nothing configured is lost, and a code from the text that Supertext doesn't list is kept and shown as it is.
 
 ### Interface languages
@@ -172,10 +175,25 @@ The module's own screens (the *Translate with Supertext* action and dialog, its 
 | Endpoint | `https://api.supertext.com/v1/` | Change only for testing. Must be `https` (plain `http` only to `localhost`), because the API key travels with every request. Disabled while `SUPERTEXT_API_ENDPOINT` is set. |
 | Form of address | Automatic | *Formal* or *Informal* for languages that distinguish them (German *Sie*/*du*, French *vous*/*tu* …). Only sent for target languages that offer it (shown next to each combo box under *Language codes*): English, Romansh, Albanian, Serbian and Swiss German are translated without it. |
 | Language codes | the same code, else Supertext's default | A combo box per site language with Supertext's target languages; see [Language codes](#language-codes). There is no fallback from `de_LI` to `de`: languages without a default need a choice. |
+| Translation review | off | A checkbox per translated language next to its combo box under *Language codes*: translations into it go through Supertext's review service; see [Translation review](#translation-review). Stored in `config:/modules/supertext-translation/config/languageReview` (`de_CH = true`). |
+| `reviewUrl` | Supertext's review service | No field in the app: add the property `reviewUrl` to `config:/modules/supertext-translation/config` in the Configuration app, or set `SUPERTEXT_REVIEW_URL` (wins). The address of the review service for languages with *Translation review* on; an empty value turns review off for every language (the checkboxes disappear). Only change it when Supertext gives you another address. |
 | Never translate | – | Property names (comma or line separated) that keep the source text, e.g. `teaserCode`. |
 | Also translate | – | Property names that are translated wherever they hold text, even if no dialog describes them (content from imports or legacy Magnolia 5 dialogs). Rich text is recognised by its tags. |
 | Timeout (seconds) | 300 | How long to wait for Supertext per document before giving up (10–3600 s). |
 | Send version information to Supertext | On | See [Version information and the API key check](#version-information-and-the-api-key-check). `SUPERTEXT_VERSION_REPORTS` wins. |
+
+## Translation review
+
+With **Translation review**, people check the translations on the website itself and correct them there: customers or Supertext linguists open the original and the translated page side by side in Chrome with the *Supertext Localization Review* extension and fix texts in a side panel. Their corrections come back into Magnolia.
+
+Turn it on per language that is translated **into**: app launcher → Translation → **Supertext** → *Language codes* → tick **Translation review** next to the language (e.g. *German (Switzerland)*) → **Save**. Untick it to turn it off again; nothing else changes.
+
+- Translations into that language then go through Supertext's review service instead of directly to Supertext. It answers exactly like Supertext and passes everything on with your API key, so billing, languages, formal/informal and error messages stay the same.
+- The review service keeps every translation of your account. A text it has translated before gets the same translation again (without a new Supertext call), and once a reviewer has corrected it, the corrected text.
+- **Corrections arrive with the next translation:** after a review, translate the pages again (*Translate with Supertext* with *Overwrite existing translations*) to write the corrections into Magnolia. As always, overwriting replaces manual changes in the translated texts.
+- Reviewers get a review link for your site from Supertext; nothing to set up in Magnolia.
+- The review service works with keys of the **live** Supertext API. With another endpoint (`SUPERTEXT_API_ENDPOINT` or the *Endpoint* field), leave review off.
+- *Export for translation* and *Import translation* don't use the review service. The API key check and the version reports still go directly to Supertext.
 
 ## Version information and the API key check
 
@@ -205,6 +223,9 @@ A report goes to Supertext's Commando Center when you save the settings in the S
 | *Could not reach Supertext* | The server can't connect to `api.supertext.com` (firewall, proxy). Magnolia uses the JVM's proxy settings (`https.proxyHost`, `https.proxyPort`). |
 | *The language … has no Supertext language code* / a red line under *Language codes* | The locale has no Supertext code and no obvious default (e.g. `de_LI`, `en_IE`, `gsw`). Choose one in its combo box under *Language codes* and click **Save**; see [Language codes](#language-codes). Nothing was sent for that language. |
 | *Supertext does not accept this language pair (source …, target …)* | A code kept from the old text field isn't one Supertext offers (e.g. `es-ES` instead of `es`), or source and target are the same language. Choose a code from the list; the message names the codes that were sent. |
+| "Authentication failed" only for languages with *Translation review* | The review service only works with keys of the live Supertext API: with another endpoint, leave review off. |
+| Reviewers' corrections don't show up in Magnolia | They arrive with the next translation: translate the pages into that language again with *Overwrite existing translations*. Check that *Translation review* is ticked for the language. |
+| No *Translation review* checkboxes | `reviewUrl` (or `SUPERTEXT_REVIEW_URL`) is empty or the same as the endpoint: review is off for every language. |
 | *Supertext doesn't offer the option politeness for …* | Formal/informal for a language that has none. The module doesn't send it for the languages it knows; for a code it doesn't know yet, set *Form of address* to *Automatic*. |
 | *Supertext rejected the API key …* (after saving) | See [API key](#api-key): copy the whole key again or generate a new one at [supertext.com → Integrations → API](https://www.supertext.com/en/integrations/api) (Admin role). No account yet? Create one at [supertext.com](https://www.supertext.com/person/en/account/signin). |
 | *The API key couldn't be checked because Supertext can't be reached* | The Magnolia server can't connect to `api.supertext.com` (firewall, proxy). The settings are saved; click **Check connection** later. |
